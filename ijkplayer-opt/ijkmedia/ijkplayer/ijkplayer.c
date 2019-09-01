@@ -820,6 +820,6 @@ int ijkmp_stop_record(IjkMediaPlayer *mp)
 }
 
 int ijkmp_isRecording(IjkMediaPlayer *mp) {
-    return mp->ffplayer->is_record == AVRECORD_STATE_RECORDING;
+    return (mp->ffplayer->is_record == AVRECORD_STATE_RECORDING) && (mp->ffplayer->video_num > 0);
 }
 

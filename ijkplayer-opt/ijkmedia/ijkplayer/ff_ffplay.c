@@ -36,7 +36,6 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/time.h>
 
 #include "libavutil/avstring.h"
 #include "libavutil/eval.h"
@@ -2345,7 +2344,7 @@ static int ffplay_video_thread(void *arg)
 				duration = (frame_rate.num && frame_rate.den ? av_q2d((AVRational){frame_rate.den, frame_rate.num}) : 0);
 			}
             pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
-			av_log(NULL, AV_LOG_INFO, "frame->pts = %d pkt_serial = %d\n", frame->pts,is->viddec.pkt_serial);
+			//av_log(NULL, AV_LOG_INFO, "frame->pts = %d pkt_serial = %d\n", frame->pts,is->viddec.pkt_serial);
             ret = queue_picture(ffp, frame, pts, duration, frame->pkt_pos, is->viddec.pkt_serial);
             av_frame_unref(frame);
 #if CONFIG_AVFILTER
@@ -3354,7 +3353,12 @@ static int read_thread(void *arg)
     } else {
         assert("invalid streams");
     }
-
+//added by yuanzc for audio delay
+	if (ffp->video_play_type == AVPLAY_LIVE){
+		ffp->dcc.max_buffer_size = 512 * 1024;
+	}
+//end added
+	
     if (ffp->infinite_buffer < 0 && is->realtime)
         ffp->infinite_buffer = 1;
 
@@ -3553,6 +3557,17 @@ static int read_thread(void *arg)
         }
         pkt->flags = 0;
         ret = av_read_frame(ic, pkt);
+//added by yuanzc for audio delay
+		if (ret >= 0 && ffp->video_play_type == AVPLAY_LIVE && pkt->stream_index == is->audio_stream
+				&& is->audioq.size > SAMPLE_MAX_BUFFER_SIZE){
+			if (!is->eof) {
+                ffp_toggle_buffering(ffp, 0);
+            }
+			av_packet_unref(pkt);
+			ffp_statistic_l(ffp);
+			continue;
+		}
+//end added
         if (ret < 0) {
             int pb_eof = 0;
             int pb_error = 0;
@@ -3626,6 +3641,20 @@ static int read_thread(void *arg)
                 av_q2d(ic->streams[pkt->stream_index]->time_base) -
                 (double)(ffp->start_time != AV_NOPTS_VALUE ? ffp->start_time : 0) / 1000000
                 <= ((double)ffp->duration / 1000000);
+	//added by yuanzc
+        if (AVRECORD_STATE_RECORDING == ffp->is_record && pkt_in_play_range && 
+			(pkt->stream_index == is->audio_stream || pkt->stream_index == is->video_stream)) {
+            if (0 != ffp_record_file(ffp, pkt)) {
+                ffp->record_error ++;
+				if (ffp->video_num > 0 && ffp->record_error > 30){ 
+					av_log(ffp, AV_LOG_ERROR, "ffp->record_error = %d need to stop \n",ffp->record_error);
+                	ffp_stop_record(ffp);
+				}
+            }else{
+            	ffp->record_error = 0;
+            }
+        }
+	//end added
         if (pkt->stream_index == is->audio_stream && pkt_in_play_range) {
             packet_queue_put(&is->audioq, pkt);
         } else if (pkt->stream_index == is->video_stream && pkt_in_play_range
@@ -3660,15 +3689,6 @@ static int read_thread(void *arg)
                 }
             }
         }
-        ///add    
-       
-        if (AVRECORD_STATE_RECORDING == ffp->is_record) { // 可以录制时，写入文件
-            if (0 != ffp_record_file(ffp, pkt)) {
-                ffp->record_error ++;
-                ///ffp_stop_record(ffp);
-            }
-        }
-		///add end
     }
 
     ret = 0;
@@ -5115,7 +5135,6 @@ void ffp_get_current_frame_l(FFPlayer *ffp, uint8_t *frame_buf)
 }
 
 
-#define RECORD_NEW_PKT 1
 #define RECORD_ONLY_VIDEO 0
 
 int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
@@ -5197,7 +5216,7 @@ int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
 			//av_log(ffp, AV_LOG_ERROR, "video duration:%"PRId64"\n",ffp->video_duration);
 			
 		}else{
-		#if 0 //yuanzc
+		#if 1 //yuanzc
 			ffp->audio_duration = 1000*1000/out_stream->time_base.den;
 		#else
 			ffp->audio_duration = 1000;
@@ -5230,6 +5249,7 @@ int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
     }
     
     pthread_mutex_init(&ffp->record_mutex, NULL);
+	ffp->m_packet = (AVPacket *)av_malloc(sizeof(AVPacket)); 
     ffp->record_error = 0;
 	ffp->is_record = AVRECORD_STATE_RECORDING;
 	ffp->video_num = 0;
@@ -5258,7 +5278,7 @@ int ffp_record_file(FFPlayer *ffp, AVPacket *packet)
     int ret = 0;
     AVStream *in_stream;
     AVStream *out_stream;
-	AVPacket *pkt;	
+	AVPacket *pkt = ffp->m_packet;	
 	int isvideo = 0;	
 	
     struct timeval tv;
@@ -5266,7 +5286,7 @@ int ffp_record_file(FFPlayer *ffp, AVPacket *packet)
     if (ffp->is_record!=AVRECORD_STATE_RECORDING) {
 		return -1;
     }
-    if (packet == NULL) {
+    if (packet == NULL || packet->data == NULL || packet->buf == NULL|| pkt == NULL) {
         ffp->record_error ++;
         av_log(ffp, AV_LOG_ERROR, "packet == NULL");
         return -1;
@@ -5284,15 +5304,13 @@ int ffp_record_file(FFPlayer *ffp, AVPacket *packet)
 #if 1// add by yuanzc for a/v sync
 	if(ffp->video_num == 0 && !isvideo)return -1;
 	if (ffp->video_num == 0 && isvideo &&((packet->data[4] & 0x1F) != 0x07)){
-		return -1;
+		return 0;
 	}
 	if (ffp->video_num == 0 && isvideo){
-		gettimeofday(&tv,NULL);
-		ffp->video_start_pts = tv.tv_sec*1000 + tv.tv_usec/1000;
+		ffp->video_start_pts = av_gettime() / 1000;
 	}
 	if (ffp->audio_num == 0 && !isvideo){
-		gettimeofday(&tv,NULL);
-		ffp->audio_start_pts = tv.tv_sec*1000 + tv.tv_usec/1000;
+		ffp->audio_start_pts = av_gettime() / 1000;
 	}
 #endif
 	//av_log(ffp, AV_LOG_ERROR, "codec type:%d,isvideo:%d \n",in_stream->codec->codec_type,isvideo);
@@ -5311,30 +5329,24 @@ int ffp_record_file(FFPlayer *ffp, AVPacket *packet)
 				}
 			}
 		}
-		
 	}else{
 		packet->flags|=AV_PKT_FLAG_KEY;
 	}
-	//av_log(ffp, AV_LOG_ERROR, "packet index:%d, pts:%"PRId64",dts:%"PRId64",duration:%"PRId64" \n",packet->stream_index,packet->pts,packet->dts,packet->duration);
-#if RECORD_NEW_PKT
-    pkt = (AVPacket *)av_malloc(sizeof(AVPacket)); // 与看直播的 AVPacket分开，不然卡屏
-    av_new_packet(pkt, 0);
-#else
-	pkt = packet;
-#endif
-	
+	memset(pkt,0x00,sizeof(AVPacket));
+	if (av_new_packet(pkt, 0) != 0){
+		av_log(ffp, AV_LOG_ERROR, "av_new_packet == NULL");
+		return -1;
+	}
     if (0 == av_packet_ref(pkt, packet)) {
         pthread_mutex_lock(&ffp->record_mutex);
 //modify by yuanzc for a/v sync
 		if(isvideo){
-			gettimeofday(&tv,NULL);
-			pkt->pts = ffp->video_num == 0 ? 0 : (tv.tv_sec*1000 + tv.tv_usec/1000) - ffp->video_start_pts;
+			pkt->pts = ffp->video_num == 0 ? 0 : av_gettime() / 1000 - ffp->video_start_pts;
 			ffp->video_num++ ;
 			pkt->duration = ffp->video_duration;
 			//av_log(ffp, AV_LOG_ERROR, "video pts:%"PRId64" \n",pkt->pts);
 		}else{
-			gettimeofday(&tv,NULL);
-			pkt->pts = ffp->audio_num == 0 ? 0 : (tv.tv_sec*1000 + tv.tv_usec/1000) - ffp->audio_start_pts;
+			pkt->pts = ffp->audio_num == 0 ? 0 : av_gettime() / 1000 - ffp->audio_start_pts;
 			pkt->pts *= out_stream->time_base.den / 1000;
 			ffp->audio_num++;
 			pkt->duration = ffp->audio_duration;
@@ -5345,18 +5357,15 @@ int ffp_record_file(FFPlayer *ffp, AVPacket *packet)
         pkt->pos = -1;	
 				
         //av_log(ffp, AV_LOG_ERROR, "index:%d, pts:%"PRId64",dts:%"PRId64",duration:%"PRId64" \n",pkt->stream_index,pkt->pts,pkt->dts,pkt->duration);
-        // 写入一个AVPacket到输出文件
         if ((ret = av_interleaved_write_frame(ffp->m_ofmt_ctx, pkt)) < 0) {
             av_log(ffp, AV_LOG_ERROR, "Error muxing packet,ret:%d\n",ret);
         }
-#if RECORD_NEW_PKT        
-        av_packet_unref(pkt);
-#endif
+    	av_packet_unref(pkt);
         pthread_mutex_unlock(&ffp->record_mutex);
     } else {
         av_log(ffp, AV_LOG_ERROR, "av_packet_ref == NULL");
+		av_free_packet(pkt);
     }
-    
     return ret;
 }
 
@@ -5377,6 +5386,10 @@ int ffp_stop_record(FFPlayer *ffp)
             ffp->m_ofmt_ctx = NULL;
         }
 		ffp->is_record = AVRECORD_STATE_UNKNOWN;
+		if (ffp->m_packet != NULL){
+			av_free(ffp->m_packet);
+			ffp->m_packet = NULL;
+		}
         pthread_mutex_unlock(&ffp->record_mutex);
         pthread_mutex_destroy(&ffp->record_mutex);
         av_log(ffp, AV_LOG_ERROR, "stop record ok !\n");
