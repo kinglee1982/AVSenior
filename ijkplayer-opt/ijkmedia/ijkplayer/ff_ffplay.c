@@ -477,7 +477,7 @@ static int convert_image(FFPlayer *ffp, AVFrame *src_frame, int64_t src_frame_pt
         img_info->frame_img_codec_ctx->codec_type = AVMEDIA_TYPE_VIDEO;
         img_info->frame_img_codec_ctx->time_base.num = ffp->is->video_st->time_base.num;
         img_info->frame_img_codec_ctx->time_base.den = ffp->is->video_st->time_base.den;
-        //我加的代码
+        //
         img_info->frame_img_codec_ctx->flags |= CODEC_FLAG_LOW_DELAY;
         av_log(NULL, AV_LOG_ERROR, "ijkplayer %d 4444444444444.\n",img_info->frame_img_codec_ctx->flags);
         avcodec_open2(img_info->frame_img_codec_ctx, image_codec, NULL);
@@ -1292,7 +1292,7 @@ static double compute_target_delay(FFPlayer *ffp, double delay, VideoState *is)
 }
 //modify by yuanzc
 static double vp_duration(FFPlayer *ffp,VideoState *is, Frame *vp, Frame *nextvp) {
-	if (ffp->video_play_type == AVPLAY_LIVE){
+	if (ffp->video_play_type == AVPLAY_LIVE_NORMAL || ffp->video_play_type == AVPLAY_LIVE_INTERLACE){
 		return vp->duration;
 	}else{
 		if (vp->serial == nextvp->serial) {
@@ -1365,7 +1365,7 @@ retry:
             last_duration = vp_duration(ffp, is, lastvp, vp);
 
 			//modify by yuanzc
-			if (ffp->video_play_type == AVPLAY_LIVE){
+			if (ffp->video_play_type == AVPLAY_LIVE_NORMAL || ffp->video_play_type == AVPLAY_LIVE_INTERLACE){
 				delay = 0;
 			}else{
 				delay = compute_target_delay(ffp, last_duration, is);
@@ -1555,7 +1555,7 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                         is->accurate_seek_start_time = now;
                     }
                     SDL_UnlockMutex(is->accurate_seek_mutex);
-                    av_log(NULL, AV_LOG_INFO, "video accurate_seek start, is->seek_pos=%lld, pts=%lf, is->accurate_seek_time = %lld\n", is->seek_pos, pts, is->accurate_seek_start_time);
+                    av_log(NULL, AV_LOG_INFO, "video accurate_seek start, is->seek_pos=%"PRId64", pts=%lf, is->accurate_seek_time = %"PRId64"\n", is->seek_pos, pts, is->accurate_seek_start_time);
                 }
                 is->drop_vframe_count++;
 
@@ -1578,11 +1578,11 @@ static int queue_picture(FFPlayer *ffp, AVFrame *src_frame, double pts, double d
                 if ((now - is->accurate_seek_start_time) <= ffp->accurate_seek_timeout) {
                     return 1;  // drop some old frame when do accurate seek
                 } else {
-                    av_log(NULL, AV_LOG_WARNING, "video accurate_seek is error, is->drop_vframe_count=%d, now = %lld, pts = %lf\n", is->drop_vframe_count, now, pts);
+                    av_log(NULL, AV_LOG_WARNING, "video accurate_seek is error, is->drop_vframe_count=%d, now = %"PRId64", pts = %lf\n", is->drop_vframe_count, now, pts);
                     video_accurate_seek_fail = 1;  // if KEY_FRAME interval too big, disable accurate seek
                 }
             } else {
-                av_log(NULL, AV_LOG_INFO, "video accurate_seek is ok, is->drop_vframe_count =%d, is->seek_pos=%lld, pts=%lf\n", is->drop_vframe_count, is->seek_pos, pts);
+                av_log(NULL, AV_LOG_INFO, "video accurate_seek is ok, is->drop_vframe_count =%d, is->seek_pos=%"PRId64", pts=%lf\n", is->drop_vframe_count, is->seek_pos, pts);
                 if (video_seek_pos == is->seek_pos) {
                     is->drop_vframe_count       = 0;
                     SDL_LockMutex(is->accurate_seek_mutex);
@@ -2040,7 +2040,7 @@ static int audio_thread(void *arg)
                                     is->accurate_seek_start_time = now;
                                 }
                                 SDL_UnlockMutex(is->accurate_seek_mutex);
-                                av_log(NULL, AV_LOG_INFO, "audio accurate_seek start, is->seek_pos=%lld, audio_clock=%lf, is->accurate_seek_start_time = %lld\n", is->seek_pos, audio_clock, is->accurate_seek_start_time);
+                                av_log(NULL, AV_LOG_INFO, "audio accurate_seek start, is->seek_pos=%"PRId64", audio_clock=%lf, is->accurate_seek_start_time = %"PRId64"\n", is->seek_pos, audio_clock, is->accurate_seek_start_time);
                             }
                             is->drop_aframe_count++;
                             while (is->video_accurate_seek_req && !is->abort_request) {
@@ -2097,7 +2097,7 @@ static int audio_thread(void *arg)
                         audio_accurate_seek_fail = 1;
                     }
                     if (audio_accurate_seek_fail) {
-                        av_log(NULL, AV_LOG_INFO, "audio accurate_seek is error, is->drop_aframe_count=%d, now = %lld, audio_clock = %lf\n", is->drop_aframe_count, now, audio_clock);
+                        av_log(NULL, AV_LOG_INFO, "audio accurate_seek is error, is->drop_aframe_count=%d, now = %"PRId64", audio_clock = %lf\n", is->drop_aframe_count, now, audio_clock);
                         is->drop_aframe_count       = 0;
                         SDL_LockMutex(is->accurate_seek_mutex);
                         is->audio_accurate_seek_req = 0;
@@ -2192,6 +2192,111 @@ static int decoder_start(Decoder *d, int (*fn)(void *), void *arg, const char *n
     }
     return 0;
 }
+#if SUPPORT_TINTERLACE_FILTER
+static int tinterlace_filter_graph(FFPlayer *ffp, AVFilterGraph **graph, AVFilterContext **src,
+                             AVFilterContext **sink, AVFrame *frame)
+{
+    AVFilterGraph *filter_graph;
+    AVFilterContext *buffer_ctx;
+    AVFilter        *buffer;
+    AVFilterContext *tinterlace_ctx;
+    AVFilter        *atinterlace;
+    AVFilterContext *buffersink_ctx;
+    AVFilter        *buffersink;
+
+	VideoState *is = ffp->is;
+	AVCodecParameters *codecpar = is->video_st->codecpar;
+    AVRational fr = av_guess_frame_rate(is->ic, is->video_st, NULL);
+	
+    int err;
+    filter_graph = avfilter_graph_alloc();
+    if (!filter_graph) {
+        av_log(NULL, AV_LOG_ERROR, "Unable to create filter graph.\n");
+        return AVERROR(ENOMEM);
+    }
+
+    buffer = avfilter_get_by_name("buffer");
+    if (!buffer) {
+        av_log(NULL, AV_LOG_ERROR, "Could not find the buffer filter.\n");
+        return AVERROR_FILTER_NOT_FOUND;
+    }
+
+    buffer_ctx = avfilter_graph_alloc_filter(filter_graph, buffer, "src");
+    if (!buffer_ctx) {
+        av_log(NULL, AV_LOG_ERROR, "Could not allocate the buffer instance.\n");
+        return AVERROR(ENOMEM);
+    }
+	char buffersrc_args[256] = {0};
+	snprintf(buffersrc_args, sizeof(buffersrc_args),
+             "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
+             frame->width, frame->height, frame->format,
+             is->video_st->time_base.num, is->video_st->time_base.den,
+             codecpar->sample_aspect_ratio.num, FFMAX(codecpar->sample_aspect_ratio.den, 1));
+    if (fr.num && fr.den)
+        av_strlcatf(buffersrc_args, sizeof(buffersrc_args), ":frame_rate=%d/%d", fr.num, fr.den);
+	
+    err = avfilter_init_str(buffer_ctx, buffersrc_args);
+    if (err < 0) {
+        av_log(NULL, AV_LOG_ERROR, "Could not initialize the buffer filter.\n");
+        return err;
+    }
+
+    atinterlace = avfilter_get_by_name("tinterlace");
+    if (!atinterlace) {
+        av_log(NULL, AV_LOG_ERROR, "Could not find the tinterlace filter.\n");
+        return AVERROR_FILTER_NOT_FOUND;
+    }
+
+    tinterlace_ctx = avfilter_graph_alloc_filter(filter_graph, atinterlace, "tinterlace");
+    if (!tinterlace_ctx) {
+        av_log(NULL, AV_LOG_ERROR,"Could not allocate the tinterlace instance.\n");
+        return AVERROR(ENOMEM);
+    }
+
+    err = avfilter_init_str(tinterlace_ctx, "mode=interleave_top:flags=complex_filter");
+    if (err < 0) {
+        av_log(NULL, AV_LOG_ERROR,"Could not initialize the tinterlace filter.\n");
+        return err;
+    }
+	
+    buffersink = avfilter_get_by_name("buffersink");
+    if (!buffersink) {
+        av_log(NULL, AV_LOG_ERROR,"Could not find the buffersink filter.\n");
+        return AVERROR_FILTER_NOT_FOUND;
+    }
+
+    buffersink_ctx = avfilter_graph_alloc_filter(filter_graph, buffersink, "sink");
+    if (!buffersink_ctx) {
+        av_log(NULL, AV_LOG_ERROR,"Could not allocate the buffersink instance.\n");
+        return AVERROR(ENOMEM);
+    }
+
+    err = avfilter_init_str(buffersink_ctx, NULL);
+    if (err < 0) {
+        av_log(NULL, AV_LOG_ERROR,"Could not initialize the buffersink instance.\n");
+        return err;
+    }
+    err = avfilter_link(buffer_ctx, 0, tinterlace_ctx, 0);
+    if (err >= 0)
+        err = avfilter_link(tinterlace_ctx, 0, buffersink_ctx, 0);
+    if (err < 0) {
+        av_log(NULL, AV_LOG_ERROR, "Error connecting filters\n");
+        return err;
+    }
+
+    err = avfilter_graph_config(filter_graph, NULL);
+    if (err < 0) {
+        av_log(NULL, AV_LOG_ERROR, "Error configuring the filter graph\n");
+        return err;
+    }
+
+    *graph = filter_graph;
+    *src   = buffer_ctx;
+    *sink  = buffersink_ctx;
+
+    return 0;
+}
+#endif
 
 static int ffplay_video_thread(void *arg)
 {
@@ -2208,6 +2313,10 @@ static int ffplay_video_thread(void *arg)
     int64_t last_dst_pts = -1;
     int retry_convert_image = 0;
     int convert_frame_count = 0;
+#if SUPPORT_TINTERLACE_FILTER
+	AVFilterGraph *tingraph = NULL;
+    AVFilterContext *b_out = NULL, *b_in = NULL;
+#endif
 
 #if CONFIG_AVFILTER
     AVFilterGraph *graph = avfilter_graph_alloc();
@@ -2232,7 +2341,6 @@ static int ffplay_video_thread(void *arg)
 #endif
         return AVERROR(ENOMEM);
     }
-
     for (;;) {
         ret = get_video_frame(ffp, frame);
         if (ret < 0)
@@ -2337,8 +2445,47 @@ static int ffplay_video_thread(void *arg)
                 is->frame_last_filter_delay = 0;
             tb = av_buffersink_get_time_base(filt_out);
 #endif
+#if SUPPORT_TINTERLACE_FILTER
+		if((ffp->video_play_type == AVPLAY_LIVE_INTERLACE || ffp->video_play_type == AVPLAY_PLAYBACK_INTERLACE)
+			&& tingraph == NULL){
+			int iret = tinterlace_filter_graph(ffp, &tingraph,&b_in,&b_out,frame);
+			if (iret != 0){
+				if (tingraph != NULL){
+					avfilter_graph_free(&tingraph);
+					tingraph = NULL;
+				}
+			}else{
+				av_log(NULL, AV_LOG_ERROR, "tingraph ok!!!!!!!!!!!\n");
+			}
+		}
+		
+		int tinret = 0;
+		if (tingraph != NULL){
+			tinret = av_buffersrc_add_frame(b_in, frame);
+			if (tinret < 0) {
+				av_log(NULL, AV_LOG_INFO, "Error while feeding the filtergraph\n");
+				goto the_end;
+			}
+		}
+			
+		while (tinret >= 0) {
+			if (tingraph != NULL){
+	            tinret = av_buffersink_get_frame_flags(b_out, frame, 0);
+				//av_log(NULL, AV_LOG_INFO, "tingraph  tinret === %d field_order = %d codectype = %d\n",
+				//	tinret,is->ic->streams[0]->codecpar->field_order,is->ic->streams[0]->codecpar->codec_type);
+				//is->ic->streams[0]->codecpar->field_order = 1;
+	            if (tinret < 0) {
+	                if (tinret == AVERROR_EOF)
+	                    is->viddec.finished = is->viddec.pkt_serial;
+	                tinret = 0;
+	                break;
+	            }
+			}else{
+				tinret = -1;
+			}
+#endif
 			//modify by yuanzc
-			if (ffp->video_play_type == AVPLAY_LIVE){
+			if (ffp->video_play_type == AVPLAY_LIVE_NORMAL || ffp->video_play_type == AVPLAY_LIVE_INTERLACE){
 				duration = 0.01;
 			}else{
 				duration = (frame_rate.num && frame_rate.den ? av_q2d((AVRational){frame_rate.den, frame_rate.num}) : 0);
@@ -2350,6 +2497,10 @@ static int ffplay_video_thread(void *arg)
 #if CONFIG_AVFILTER
         }
 #endif
+#if SUPPORT_TINTERLACE_FILTER
+		}
+#endif
+
 
         if (ret < 0)
             goto the_end;
@@ -2358,6 +2509,10 @@ static int ffplay_video_thread(void *arg)
 #if CONFIG_AVFILTER
     avfilter_graph_free(&graph);
 #endif
+#if SUPPORT_TINTERLACE_FILTER
+	avfilter_graph_free(&tingraph);
+#endif
+
     av_log(NULL, AV_LOG_INFO, "convert image convert_frame_count = %d\n", convert_frame_count);
     av_frame_free(&frame);
     return 0;
@@ -2413,6 +2568,40 @@ static int subtitle_thread(void *arg)
     }
     return 0;
 }
+
+//added by yuanzc for audio db
+void simpleCalculate_DB(const uint8_t *pcmdata, int sample,int *left,int *right){
+#define MAX_CALC_VALUE 130
+	if (pcmdata == NULL || sample <= 0 || left == NULL || right == NULL){
+		return;
+	}
+	double sumL = 0,sumR = 0;
+	short* pos = (short*)pcmdata;
+	int slen = sample / 2;
+	for (int i = 0; i < slen; i++){
+		if (i % 2 == 0){
+			sumL += abs(*pos);
+		}else{
+			sumR += abs(*pos);
+		}
+		pos++;        
+	}        
+	sumL = sumL * 500.0 * 4 / (slen * 32767);
+	sumR = sumR * 500.0  * 4 / (slen * 32767);
+	
+	*left = sumL * 100 / MAX_CALC_VALUE;
+	*right = sumR * 100 / MAX_CALC_VALUE;
+
+	if (*left >= 100){
+		*left = 100;        
+	}   
+	if (*right >= 100){
+		*right = 100;        
+	}  
+	return;
+}
+//end added
+
 
 /* copy samples for viewing in editor window */
 static void update_sample_display(VideoState *is, short *samples, int samples_size)
@@ -2660,12 +2849,12 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
 {
     FFPlayer *ffp = opaque;
     VideoState *is = ffp->is;
-    int audio_size, len1;
+    int audio_size = 0, len1;
     if (!ffp || !is) {
         memset(stream, 0, len);
         return;
     }
-
+	
     ffp->audio_callback_time = av_gettime_relative();
 
     if (ffp->pf_playback_rate_changed) {
@@ -2694,6 +2883,19 @@ static void sdl_audio_callback(void *opaque, Uint8 *stream, int len)
                if (is->show_mode != SHOW_MODE_VIDEO)
                    update_sample_display(is, (int16_t *)is->audio_buf, audio_size);
                is->audio_buf_size = audio_size;
+
+		//yuanzc for audio db
+				if (ffp->switch_audio_db){
+					if (!is->muted && is->audio_buf && audio_size > 8 && is->audio_buf[0] != 0 && is->audio_buf[1] != 0 
+						&& is->audio_buf[4] != 0 && is->audio_buf[5] != 0){
+						int left = -1,right = -1;
+						simpleCalculate_DB(is->audio_buf, audio_size,&left,&right);
+						if (left > 0 || right > 0){
+							ffp_notify_msg3(ffp,FFP_MSG_AUDIO_DB_VALUE,left,right);
+						}
+					}
+				}
+		//end added
            }
            is->audio_buf_index = 0;
         }
@@ -2902,7 +3104,6 @@ static int stream_component_open(FFPlayer *ffp, int stream_index)
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO || avctx->codec_type == AVMEDIA_TYPE_AUDIO)
         av_dict_set(&opts, "refcounted_frames", "1", 0);
     
-    //我加的代码
     avctx->flags |= CODEC_FLAG_LOW_DELAY;
     av_log(NULL, AV_LOG_ERROR, "ijkplayer %d 3333333333333.\n",avctx->flags);
     
@@ -3140,7 +3341,9 @@ static int read_thread(void *arg)
         // There is total different meaning for 'timeout' option in rtmp
         av_log(ffp, AV_LOG_WARNING, "remove 'timeout' option for rtmp.\n");
         av_dict_set(&ffp->format_opts, "timeout", NULL, 0);
-        //我改的
+//yuanzc for rtsp not delay when network jitter
+        av_dict_set(&ffp->format_opts, "max_delay", "0", 0);
+		
         av_dict_set(&ffp->format_opts, "inittial_timeout", "5000000", 0);
         av_dict_set(&ffp->format_opts, "stimeout", "500000", 0);
     }
@@ -3244,7 +3447,7 @@ static int read_thread(void *arg)
         }
     }
 
-    //is->realtime = is_realtime(ic);   我改的代码
+    is->realtime = is_realtime(ic);
     is->realtime = 0;
 
     av_dump_format(ic, 0, is->filename, 0);
@@ -3354,7 +3557,7 @@ static int read_thread(void *arg)
         assert("invalid streams");
     }
 //added by yuanzc for audio delay
-	if (ffp->video_play_type == AVPLAY_LIVE){
+	if (ffp->video_play_type == AVPLAY_LIVE_NORMAL || ffp->video_play_type == AVPLAY_LIVE_INTERLACE){
 		ffp->dcc.max_buffer_size = 512 * 1024;
 	}
 //end added
@@ -3558,7 +3761,8 @@ static int read_thread(void *arg)
         pkt->flags = 0;
         ret = av_read_frame(ic, pkt);
 //added by yuanzc for audio delay
-		if (ret >= 0 && ffp->video_play_type == AVPLAY_LIVE && pkt->stream_index == is->audio_stream
+		if (ret >= 0 && (ffp->video_play_type == AVPLAY_LIVE_NORMAL || 
+				ffp->video_play_type == AVPLAY_LIVE_INTERLACE) && pkt->stream_index == is->audio_stream
 				&& is->audioq.size > SAMPLE_MAX_BUFFER_SIZE){
 			if (!is->eof) {
                 ffp_toggle_buffering(ffp, 0);
@@ -3942,9 +4146,10 @@ void ffp_global_init()
 #if CONFIG_AVDEVICE
     avdevice_register_all();
 #endif
-#if CONFIG_AVFILTER
+#if CONFIG_AVFILTER || SUPPORT_TINTERLACE_FILTER
     avfilter_register_all();
 #endif
+
     av_register_all();
 
     ijkav_register_all();
@@ -5279,9 +5484,7 @@ int ffp_record_file(FFPlayer *ffp, AVPacket *packet)
     AVStream *in_stream;
     AVStream *out_stream;
 	AVPacket *pkt = ffp->m_packet;	
-	int isvideo = 0;	
-	
-    struct timeval tv;
+	int isvideo = 0;
 	
     if (ffp->is_record!=AVRECORD_STATE_RECORDING) {
 		return -1;

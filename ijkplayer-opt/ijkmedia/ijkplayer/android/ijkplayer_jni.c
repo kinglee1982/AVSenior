@@ -1020,6 +1020,12 @@ static void message_loop_n(JNIEnv *env, IjkMediaPlayer *mp)
             MPTRACE("FFP_MSG_AUDIO_SEEK_RENDERING_START:\n");
             post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_AUDIO_SEEK_RENDERING_START, msg.arg1);
             break;
+		//yuanzc for audio db
+		case FFP_MSG_AUDIO_DB_VALUE:
+			//MPTRACE("FFP_MSG_AUDIO_DB_VALUE dbLeft = %d: dbRight = %d\n",msg.arg1,msg.arg2);
+			msg.arg1 = (msg.arg1 << 16) + msg.arg2;
+			post_event(env, weak_thiz, MEDIA_INFO, MEDIA_INFO_AUDIO_DB_VALUE, msg.arg1);
+			break;
         default:
             ALOGE("unknown FFP_MSG_xxx(%d)\n", msg.what);
             break;

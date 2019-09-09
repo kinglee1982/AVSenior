@@ -31,6 +31,10 @@
 #endif
 #define CONFIG_AVFILTER 0
 
+//added by yuanzc for 30p to 60i
+#define SUPPORT_TINTERLACE_FILTER 0
+
+
 #ifdef FFP_MERGE
 #undef FFP_MERGE
 #endif

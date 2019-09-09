@@ -165,7 +165,9 @@ static const AVOption ffp_context_options[] = {
     { "video-mime-type",                    "default video mime type",
         OPTION_OFFSET(video_mime_type),     OPTION_STR(NULL) },
     { "video_play_type",                    "default video live play",//added by yuanzc for live or playback
-        OPTION_OFFSET(video_play_type),     OPTION_INT(0, 0, 1) },
+        OPTION_OFFSET(video_play_type),     OPTION_INT(0, 0, 4) },
+    { "switch_audio_db",                    "default no need audio db",//added by yuanzc for audio db
+        OPTION_OFFSET(switch_audio_db),     OPTION_INT(0, 0, 1) },
 
         // iOS only options
     { "videotoolbox",                       "VideoToolbox: enable",
