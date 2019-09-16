@@ -541,7 +541,8 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
     public native int startRecord(String filePath,int fps);
     public native int stopRecord();
     public native boolean isRecording();
-
+    public native void native_setEglFilter(
+           int cmd, int type, int centerX, int centerY,float ratio,int color,int lineW,String filePath);
     @Override
     public void pause() throws IllegalStateException {
         stayAwake(false);
@@ -1036,6 +1037,9 @@ public final class IjkMediaPlayer extends AbstractMediaPlayer {
                 switch (msg.arg1) {
                     case MEDIA_INFO_VIDEO_RENDERING_START:
                         DebugLog.i(TAG, "Info: MEDIA_INFO_VIDEO_RENDERING_START\n");
+                        break;
+                    case MEDIA_INFO_AUDIO_DB_VALUE:
+                        DebugLog.i(TAG, "Info: MEDIA_INFO_AUDIO_DB_VALUE :" + (msg.arg2 >> 16) + "::" + (msg.arg2 & 0x0000ffff));
                         break;
                 }
                 player.notifyOnInfo(msg.arg1, msg.arg2);

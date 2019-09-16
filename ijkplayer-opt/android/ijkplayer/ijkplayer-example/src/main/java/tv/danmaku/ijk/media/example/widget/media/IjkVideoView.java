@@ -1074,8 +1074,10 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
 
                     ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "http-detect-range-support", 0);
 
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 48);
-                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "video_play_type", mVideoPlayType);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 0);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "video_play_type", 3);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "switch_audio_db", 0);
+                    ijkMediaPlayer.setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", "fcc-_es2");
                 }
                 mediaPlayer = ijkMediaPlayer;
             }
@@ -1262,6 +1264,14 @@ public class IjkVideoView extends FrameLayout implements MediaController.MediaPl
 
     public int getSelectedTrack(int trackType) {
         return MediaPlayerCompat.getSelectedTrack(mMediaPlayer, trackType);
+    }
+
+    public void setEGLFilter(int cmd,int type,int centerX, int centerY,float ratio,int color,int lineW,String filePath){
+        if (mMediaPlayer instanceof IjkMediaPlayer && isPlaying()){
+            IjkMediaPlayer player = (IjkMediaPlayer)mMediaPlayer;
+            player.native_setEglFilter(cmd,type, centerX,  centerY, ratio, color, lineW, filePath);
+        }
+        return;
     }
 
     public int appStartRecord(String path,int fps){

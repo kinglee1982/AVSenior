@@ -49,7 +49,9 @@ LOCAL_SRC_FILES += gles2/shader.c
 LOCAL_SRC_FILES += gles2/fsh/rgb.fsh.c
 LOCAL_SRC_FILES += gles2/fsh/yuv420p.fsh.c
 LOCAL_SRC_FILES += gles2/fsh/yuv444p10le.fsh.c
+LOCAL_SRC_FILES += gles2/fsh/display.fsh.c
 LOCAL_SRC_FILES += gles2/vsh/mvp.vsh.c
+LOCAL_SRC_FILES += gles2/vsh/mvp_display.vsh.c
 
 LOCAL_SRC_FILES += dummy/ijksdl_vout_dummy.c
 

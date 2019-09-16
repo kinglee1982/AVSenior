@@ -1143,7 +1143,8 @@ IjkMediaPlayer_startRecord(JNIEnv *env, jobject thiz,jstring file,jint vfps)
     JNI_CHECK_GOTO(mp, env, NULL, "mpjni: startRecord: null mp", LABEL_RETURN);
     const char *nativeString = (*env)->GetStringUTFChars(env, file, 0);
     retval = ijkmp_start_record(mp,nativeString,vfps);
-    
+    (*env)->ReleaseStringUTFChars(env, file, nativeString);
+	
 LABEL_RETURN:
     ijkmp_dec_ref_p(&mp);
     return retval;
@@ -1176,6 +1177,19 @@ IjkMediaPlayer_isRecording(JNIEnv *env, jobject thiz)
 LABEL_RETURN:
     ijkmp_dec_ref_p(&mp);
     return retval;
+}
+
+static void
+IjkMediaPlayer_setFilter(JNIEnv *env, jobject thiz, jint cmd,jint type,jint centerX, jint centerY,
+	jfloat ratio,jint color,jint lineW,jstring file)
+{
+    IjkMediaPlayer *mp = jni_get_media_player(env, thiz);
+	const char *nativeString = (*env)->GetStringUTFChars(env, file, 0);
+    ijkmp_android_set_gles_filter(mp,cmd,type,centerX,centerY,ratio,color,lineW,nativeString);
+	(*env)->ReleaseStringUTFChars(env, file, nativeString);
+	
+	ijkmp_dec_ref_p(&mp);
+	return;
 }
 
 // ----------------------------------------------------------------------------
@@ -1230,6 +1244,7 @@ static JNINativeMethod g_methods[] = {
 
     { "native_setLogLevel",     "(I)V",                     (void *) IjkMediaPlayer_native_setLogLevel },
     { "_setFrameAtTime",        "(Ljava/lang/String;JJII)V", (void *) IjkMediaPlayer_setFrameAtTime },
+    { "native_setEglFilter",    "(IIIIFIILjava/lang/String;)V", (void *) IjkMediaPlayer_setFilter },
 };
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)

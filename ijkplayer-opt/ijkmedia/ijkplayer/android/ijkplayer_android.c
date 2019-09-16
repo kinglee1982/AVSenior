@@ -125,3 +125,16 @@ void ijkmp_android_set_mediacodec_select_callback(IjkMediaPlayer *mp, bool (*cal
     pthread_mutex_unlock(&mp->mutex);
     MPTRACE("ijkmp_android_set_mediacodec_select_callback()=void");
 }
+
+void ijkmp_android_set_gles_filter(IjkMediaPlayer *mp,int cmd,int type,
+	int centerX,int centerY,float ratio,int color,int lineW,const char *filePath)
+{
+	if (!mp)
+        return;
+	pthread_mutex_lock(&mp->mutex);
+	if (mp && mp->ffplayer && mp->ffplayer->vout) {
+		SDL_VoutAndroid_setFilter(mp->ffplayer->vout,cmd,centerX, centerY, type, ratio, color, lineW,filePath);
+	}
+    pthread_mutex_unlock(&mp->mutex);
+}
+

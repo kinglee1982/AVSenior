@@ -448,3 +448,14 @@ int SDL_VoutAndroid_releaseBufferProxyP_l(SDL_Vout *vout, SDL_AMediaCodecBufferP
     *proxy = NULL;
     return ret;
 }
+
+void SDL_VoutAndroid_setFilter(SDL_Vout *vout,int cmd,int type,
+	int centerX,int centerY,float ratio,int color,int lineW,const char *filePath)
+{
+    SDL_LockMutex(vout->mutex);
+	SDL_Vout_Opaque *opaque = vout->opaque;
+    IJK_EGL_setFilter(opaque->egl,cmd,centerX,centerY,type,ratio,color,lineW,filePath);
+    SDL_UnlockMutex(vout->mutex);
+    return ;
+}
+

@@ -45,17 +45,28 @@ typedef struct IJK_GLES2_Renderer
     GLuint fragment_shader;
     GLuint plane_textures[IJK_GLES2_MAX_PLANE];
 
-    GLuint av4_position;
+    GLuint av4_position; 
     GLuint av2_texcoord;
     GLuint um4_mvp;
+	GLuint cunstom_Params;//[0]cmd,[1]type
+	GLuint cunstom_Colors;//r,g,b,a
 
     GLuint us2_sampler[IJK_GLES2_MAX_PLANE];
     GLuint um3_color_conversion;
-
+//for display texture
+	GLuint display_program;
+    GLuint display_vertex_shader;
+    GLuint display_fragment_shader;
+	GLuint display_position; 
+    GLuint display_params;
+	GLuint display_color;
+    GLuint display_mvp;
+//end for display
     GLboolean (*func_use)(IJK_GLES2_Renderer *renderer);
     GLsizei   (*func_getBufferWidth)(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
     GLboolean (*func_uploadTexture)(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
     GLvoid    (*func_destroy)(IJK_GLES2_Renderer *renderer);
+	GLvoid    (*func_shaderChange)(IJK_GLES2_Renderer *renderer,int fsType);
 
     GLsizei buffer_width;
     GLsizei visible_width;
@@ -75,6 +86,9 @@ typedef struct IJK_GLES2_Renderer
     int     frame_sar_den;
 
     GLsizei last_buffer_width;
+
+	GLES2_Draw_Type cur_draw_t;
+	GLboolean need_shader_change;
 } IJK_GLES2_Renderer;
 
 typedef struct IJK_GLES_Matrix
@@ -84,6 +98,8 @@ typedef struct IJK_GLES_Matrix
 void IJK_GLES2_loadOrtho(IJK_GLES_Matrix *matrix, GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat near, GLfloat far);
 
 const char *IJK_GLES2_getVertexShader_default();
+const char *IJK_GLES2_getVertexShader_display();
+const char *IJK_GLES2_getFragmentShader_display();
 const char *IJK_GLES2_getFragmentShader_yuv420p();
 const char *IJK_GLES2_getFragmentShader_yuv444p10le();
 const char *IJK_GLES2_getFragmentShader_yuv420sp();

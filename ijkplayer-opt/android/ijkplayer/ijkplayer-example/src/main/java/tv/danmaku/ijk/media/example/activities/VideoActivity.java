@@ -151,7 +151,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         });
         int vType = IjkMediaPlayer.IJK_PLAY_LIVE;
         if (mVideoPath.endsWith("mp4") || mVideoPath.endsWith("MP4")){
-            findViewById(R.id.btn_op_camera).setVisibility(View.GONE);
+            //findViewById(R.id.btn_op_camera).setVisibility(View.GONE);
             vType = IjkMediaPlayer.IJK_PLAY_PLAYBACK;
         }
         mRTimeTextView = (TextView) findViewById(R.id.record_time_view);
@@ -182,11 +182,19 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         }
         mVideoView.start();
     }
-
+    static int coutndd = 0;
     private void startRecord(){
-        mVideoView.appStartRecord("/sdcard/DCIM/Camera/test.mp4",30);
-        mHandler.sendEmptyMessageDelayed(MSG_TYPE_RECORDING,300);
-        mRecordStartTime = System.currentTimeMillis() / 1000;
+        if (mVideoPath.endsWith("mp4") || mVideoPath.endsWith("MP4")){
+            coutndd ++;
+            if (coutndd > 10)coutndd = 1;
+            int cmd = coutndd <= 6 ? coutndd : (coutndd == 7 ? 0x10 :
+                    (coutndd == 8 ? 0x20 : (coutndd == 9 ? 0x100 : 0x200)));
+            mVideoView.setEGLFilter(cmd,0x7F,50,50,1.2f,0xFF0000FF,12,"dd");
+        }else {
+            mVideoView.appStartRecord("/sdcard/DCIM/Camera/test.mp4", 30);
+            mHandler.sendEmptyMessageDelayed(MSG_TYPE_RECORDING, 2000);
+            mRecordStartTime = System.currentTimeMillis() / 1000;
+        }
     }
 
     private void cameraNotify(){
@@ -199,6 +207,13 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         mBackPressed = true;
 
         super.onBackPressed();
+    }
+    @Override
+    protected void onPause(){
+        if (mVideoView.isRecording()){
+            mVideoView.appStopRecord();
+        }
+        super.onPause();
     }
 
     @Override

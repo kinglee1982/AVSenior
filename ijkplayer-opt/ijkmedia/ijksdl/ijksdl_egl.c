@@ -29,6 +29,10 @@
 #include "ijksdl/ijksdl_log.h"
 #include "ijksdl/ijksdl_vout.h"
 #include "ijksdl/gles2/internal.h"
+#ifdef __ANDROID__
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
+#endif
 
 #define IJK_EGL_RENDER_BUFFER 0
 
@@ -384,6 +388,17 @@ IJK_EGL *IJK_EGL_create()
     }
 
     return egl;
+}
+
+void IJK_EGL_setFilter(IJK_EGL* egl,int cmd,int type,
+	int centerX,int centerY,float ratio,int color,int lineW,const char *filePath)
+{
+    if (!egl || !egl->opaque || !egl->opaque->renderer)
+        return;
+	ALOGE("[EGL]IJK_EGL_setFilter.cmd = 0x%x,type = %d,centerX = %d,centerY = %d,ratio = %f,color = 0x%x,lineW = %d,filtPath = %s\n",
+		cmd,centerX,centerY,type,ratio,color,lineW,filePath);
+
+	IJK_GLES2_Renderer_SetFilter(egl->opaque->renderer,cmd,centerX,centerY,type,ratio,color,lineW,filePath);
 }
 
 #endif

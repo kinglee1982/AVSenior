@@ -29,20 +29,64 @@ static const char g_shader[] = IJK_GLES_STRING(
     uniform   lowp  sampler2D us2_SamplerY;
     uniform   lowp  sampler2D us2_SamplerZ;
 
+	uniform   ivec4 cunstom_Params;
+	uniform   vec4 cunstom_Colors;
+	
     void main()
     {
         mediump vec3 yuv;
         lowp    vec3 rgb;
-
+		float fcolor;
+		int fcmd = cunstom_Params.x;
+		float aratio = cunstom_Colors.a;
+		
         yuv.x = (texture2D(us2_SamplerX, vv2_Texcoord).r - (16.0 / 255.0));
         yuv.y = (texture2D(us2_SamplerY, vv2_Texcoord).r - 0.5);
         yuv.z = (texture2D(us2_SamplerZ, vv2_Texcoord).r - 0.5);
         rgb = um3_ColorConversion * yuv;
-        gl_FragColor = vec4(rgb, 1);
+		vec3 color = rgb;
+		
+		if (fcmd == 0xF){
+        	
+		}else if(fcmd == 0x1){
+        	fcolor = rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114;
+        	color = vec3(fcolor,fcolor,fcolor);
+		}else if (fcmd == 0x2){
+			vec3 crgb = vec3(cunstom_Colors.r,cunstom_Colors.g,cunstom_Colors.b);
+        	color = crgb * rgb;
+		}else if (fcmd == 0x3){
+        	fcolor = rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114;
+			color = vec3(abs(0.0 - fcolor),abs(0.5 - fcolor),abs(1.0 - fcolor));
+		}else if (fcmd == 0x4){
+        	
+		}else if (fcmd == 0x5){
+        	
+		}else if (fcmd == 0x6){
+        	
+		}
+		gl_FragColor = vec4(color, 1);
+		if (cunstom_Params.z != 0){
+			float wratio = float(cunstom_Params.z) / 1000.0f;
+			if (vv2_Texcoord.x <= wratio){
+				gl_FragColor = vec4(color * aratio, aratio);
+			}
+			if (vv2_Texcoord.x >= 1.0f - wratio){
+				gl_FragColor = vec4(color * aratio, aratio);
+			}
+		}
+		if (cunstom_Params.w != 0){
+			float hratio = float(cunstom_Params.w) / 1000.0f;
+			if (vv2_Texcoord.y >= 1.0f - hratio){
+				gl_FragColor = vec4(color * aratio, aratio);
+			}
+			if (vv2_Texcoord.y <= hratio){
+				gl_FragColor = vec4(color * aratio, aratio);
+			}
+		}
     }
 );
 
 const char *IJK_GLES2_getFragmentShader_yuv420p()
 {
-    return g_shader;
+	return g_shader;
 }

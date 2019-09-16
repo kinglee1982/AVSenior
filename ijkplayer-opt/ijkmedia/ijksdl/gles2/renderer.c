@@ -20,7 +20,7 @@
  */
 
 #include "internal.h"
-
+static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
 static void IJK_GLES2_printProgramInfo(GLuint program)
 {
     if (!program)
@@ -52,6 +52,22 @@ static void IJK_GLES2_printProgramInfo(GLuint program)
         free(buf_heap);
 }
 
+static void IJK_GLES2_Display_reset(IJK_GLES2_Renderer *renderer)
+{
+	if (!renderer || !renderer->display_program)
+        return;
+	if (renderer->display_vertex_shader)
+        glDeleteShader(renderer->display_vertex_shader);
+    if (renderer->display_fragment_shader)
+        glDeleteShader(renderer->display_fragment_shader);
+    if (renderer->display_program)
+        glDeleteProgram(renderer->display_program);
+
+    renderer->display_vertex_shader   = 0;
+    renderer->display_fragment_shader = 0;
+    renderer->display_program         = 0;
+}
+
 void IJK_GLES2_Renderer_reset(IJK_GLES2_Renderer *renderer)
 {
     if (!renderer)
@@ -74,6 +90,8 @@ void IJK_GLES2_Renderer_reset(IJK_GLES2_Renderer *renderer)
             renderer->plane_textures[i] = 0;
         }
     }
+
+	IJK_GLES2_Display_reset(renderer);
 }
 
 void IJK_GLES2_Renderer_free(IJK_GLES2_Renderer *renderer)
@@ -107,6 +125,45 @@ void IJK_GLES2_Renderer_freeP(IJK_GLES2_Renderer **renderer)
     *renderer = NULL;
 }
 
+static void IJK_GLES2_Display_create(IJK_GLES2_Renderer *renderer)
+{
+
+    renderer->display_vertex_shader = IJK_GLES2_loadShader(GL_VERTEX_SHADER, IJK_GLES2_getVertexShader_display());
+    if (!renderer->display_vertex_shader)
+        goto fail;
+
+    renderer->display_fragment_shader = IJK_GLES2_loadShader(GL_FRAGMENT_SHADER, IJK_GLES2_getFragmentShader_display());
+    if (!renderer->display_fragment_shader)
+        goto fail;
+
+    renderer->display_program = glCreateProgram();                          IJK_GLES2_checkError("glCreateProgram");
+    if (!renderer->display_program)
+        goto fail;
+
+    glAttachShader(renderer->display_program, renderer->display_vertex_shader);     IJK_GLES2_checkError("glAttachShader(vertex)");
+    glAttachShader(renderer->display_program, renderer->display_fragment_shader);   IJK_GLES2_checkError("glAttachShader(fragment)");
+    glLinkProgram(renderer->display_program);                               IJK_GLES2_checkError("glLinkProgram");
+    GLint link_status = GL_FALSE;
+    glGetProgramiv(renderer->display_program, GL_LINK_STATUS, &link_status);
+    if (!link_status)
+        goto fail;
+
+
+    renderer->display_position   = glGetAttribLocation(renderer->display_program, "display_position");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(display_position)");
+	renderer->display_params = glGetAttribLocation(renderer->display_program, "display_params");            IJK_GLES2_checkError_TRACE("glGetAttribLocation(display_params)");
+    renderer->display_mvp        = glGetUniformLocation(renderer->display_program, "display_mvp");    IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_mvp)");
+	renderer->display_color = glGetUniformLocation(renderer->display_program, "display_color");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_color)");
+    return;
+fail:
+    if (renderer->display_vertex_shader)
+        glDeleteShader(renderer->display_vertex_shader);
+    if (renderer->display_fragment_shader)
+        glDeleteShader(renderer->display_fragment_shader);
+    if (renderer->display_program)
+        glDeleteProgram(renderer->display_program);
+    return;
+}
+
 IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_base(const char *fragment_shader_source)
 {
     assert(fragment_shader_source);
@@ -136,10 +193,10 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_base(const char *fragment_shader_s
         goto fail;
 
 
-    renderer->av4_position = glGetAttribLocation(renderer->program, "av4_Position");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(av4_Position)");
-    renderer->av2_texcoord = glGetAttribLocation(renderer->program, "av2_Texcoord");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(av2_Texcoord)");
-    renderer->um4_mvp      = glGetUniformLocation(renderer->program, "um4_ModelViewProjection");    IJK_GLES2_checkError_TRACE("glGetUniformLocation(um4_ModelViewProjection)");
-
+    renderer->av4_position   = glGetAttribLocation(renderer->program, "av4_Position");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(av4_Position)");
+    renderer->av2_texcoord   = glGetAttribLocation(renderer->program, "av2_Texcoord");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(av2_Texcoord)");
+    renderer->um4_mvp        = glGetUniformLocation(renderer->program, "um4_ModelViewProjection");    IJK_GLES2_checkError_TRACE("glGetUniformLocation(um4_ModelViewProjection)");
+	IJK_GLES2_Display_create(renderer);
     return renderer;
 
 fail:
@@ -178,7 +235,16 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create(SDL_VoutOverlay *overlay)
             ALOGE("[GLES2] unknown format %4s(%d)\n", (char *)&overlay->format, overlay->format);
             return NULL;
     }
-
+	
+	memset(&renderer->cur_draw_t,0x00,sizeof(GLES2_Draw_Type));
+	renderer->cur_draw_t.drawType = 0xFFFF;
+	for (int i = 0;i < 15;i += 3){
+		renderer->cur_draw_t.rectVertexs[i] = (i == 3 || i == 6) ? 1.0f : -1.0f;
+		renderer->cur_draw_t.rectVertexs[i + 1] = (i == 6 || i == 9) ? -1.0f : 1.0f;
+		renderer->cur_draw_t.rectVertexs[i + 2] = 0.0f;
+	}
+	renderer->need_shader_change = false;
+	
     renderer->format = overlay->format;
     return renderer;
 }
@@ -280,8 +346,8 @@ static void IJK_GLES2_Renderer_Vertices_apply(IJK_GLES2_Renderer *renderer)
 
 static void IJK_GLES2_Renderer_Vertices_reloadVertex(IJK_GLES2_Renderer *renderer)
 {
-    glVertexAttribPointer(renderer->av4_position, 2, GL_FLOAT, GL_FALSE, 0, renderer->vertices);    IJK_GLES2_checkError_TRACE("glVertexAttribPointer(av2_texcoord)");
-    glEnableVertexAttribArray(renderer->av4_position);                                      IJK_GLES2_checkError_TRACE("glEnableVertexAttribArray(av2_texcoord)");
+    glVertexAttribPointer(renderer->av4_position, 2, GL_FLOAT, GL_FALSE, 0, renderer->vertices);    IJK_GLES2_checkError_TRACE("glVertexAttribPointer(av4_position)");
+    glEnableVertexAttribArray(renderer->av4_position);                                      IJK_GLES2_checkError_TRACE("glEnableVertexAttribArray(av4_position)");
 }
 
 #define IJK_GLES2_GRAVITY_MIN                   (0)
@@ -338,6 +404,41 @@ static void IJK_GLES2_Renderer_TexCoords_reloadVertex(IJK_GLES2_Renderer *render
     glEnableVertexAttribArray(renderer->av2_texcoord);                                              IJK_GLES2_checkError_TRACE("glEnableVertexAttribArray(av2_texcoord)");
 }
 
+static void IJK_GLES2_Display_use(IJK_GLES2_Renderer *renderer)
+{
+    if (!renderer)
+        return;
+
+	glUseProgram(renderer->display_program);            IJK_GLES2_checkError_TRACE("glUseProgram");
+    IJK_GLES_Matrix modelViewProj;
+    IJK_GLES2_loadOrtho(&modelViewProj, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
+    glUniformMatrix4fv(renderer->display_mvp, 1, GL_FALSE, modelViewProj.m);                    IJK_GLES2_checkError_TRACE("glUniformMatrix4fv(display_mvp)");
+    return;
+}
+
+static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
+{
+	int type = (renderer->cur_draw_t.drawType & 0xF) == GLES_FS_TYPE_PSEUDO ? 
+		renderer->cur_draw_t.pseudoType : renderer->cur_draw_t.brightLimit;
+	int arg1 = 0,arg2 = 0;
+	if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO){
+		int fw = renderer->frame_width;
+		int fh = renderer->frame_height;
+		float whratio = renderer->cur_draw_t.whRatio;
+		float orginWHRatio = fw * 1.0f / fh;
+		float woffsetRatio = whratio <= orginWHRatio ? (fw - fh * whratio) / fw : 0.0f;
+		float hoffsetRatio = whratio <= orginWHRatio ? 0.0f : (fh - fw / whratio) / fh;
+		arg1 = (int)(woffsetRatio * 1000) / 2;
+		arg2 = (int)(hoffsetRatio * 1000) / 2;
+	}
+	glUniform4i(renderer->cunstom_Params,renderer->cur_draw_t.drawType & 0xF,type,arg1,arg2);
+	
+	int argb = renderer->cur_draw_t.argb;
+	float alpha = (renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO ? 
+		renderer->cur_draw_t.alphaOutside / 255.0 : 0.0f;
+	glUniform4f(renderer->cunstom_Colors,((argb >> 16) & 0xFF) / 255.0,
+		((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,alpha);
+}
 /*
  * Per-Renderer routine
  */
@@ -360,6 +461,7 @@ GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer)
     IJK_GLES2_Renderer_Vertices_reset(renderer);
     IJK_GLES2_Renderer_Vertices_reloadVertex(renderer);
 
+	IJK_GLES2_Set_Custom(renderer);
     return GL_TRUE;
 }
 
@@ -370,6 +472,7 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
 {
     if (!renderer || !renderer->func_uploadTexture)
         return GL_FALSE;
+	IJK_GLES2_Renderer_use(renderer);
 
     glClear(GL_COLOR_BUFFER_BIT);               IJK_GLES2_checkError_TRACE("glClear");
 
@@ -425,5 +528,210 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);      IJK_GLES2_checkError_TRACE("glDrawArrays");
 
+	if (renderer->need_shader_change){
+		IJK_GLES2_Set_Custom(renderer);
+		renderer->need_shader_change = false;
+	}
+	IJK_GLES2_Draw_Custom_Graph(renderer,overlay);
     return GL_TRUE;
 }
+
+static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float whratio,float centerX,float centerY)
+{
+	int lineMarkupType = renderer->cur_draw_t.drawType & 0x00F0;
+	static GLfloat vertexs[GLES_RECT_POINTS_COORD_NUM] = {0.0f};
+	GLfloat *originVertexs = renderer->cur_draw_t.rectVertexs;
+	int fw = renderer->frame_width;
+	int fh = renderer->frame_height;
+	if (whratio <= 0 || fw == 0 || fh == 0)return originVertexs;
+	
+	float orginWHRatio = fw * 1.0f / fh;
+	float woffsetRatio = whratio <= orginWHRatio ? (fw - fh * whratio) / fw : 0.0f;
+	float hoffsetRatio = whratio <= orginWHRatio ? 0.0f : (fh - fw / whratio) / fh;
+	ALOGE(" ----IJK_GLES2_Draw_RectVertexs- orginWHRatio = %f--fw %d -fh %d ----\n",
+		orginWHRatio,fw,fh);
+	if (lineMarkupType == GLES_MARKUP_TYPE_WIREFRAME){
+		float x = -0.5f + woffsetRatio / 2.0f + centerX;
+		float y = 0.5f - hoffsetRatio / 2.0f + centerY;
+		float xE = x + (1.0f - woffsetRatio);
+		float yE = y - (1.0f - hoffsetRatio);
+		if (xE > 1.0f){
+			xE = 1.0f;
+			x = xE - (1.0f - woffsetRatio);
+		}
+		if (yE < -1.0f){
+			yE = -1.0f;
+			y = yE + (1.0f - hoffsetRatio);
+		}
+		x = x < -1.0f ? -1.0f : x;
+		y = y > 1.0f ? 1.0f : y;
+		vertexs[0] = x;vertexs[1] = y;
+		vertexs[3] = xE;vertexs[4] = y;
+		vertexs[6] = xE;vertexs[7] = yE;
+		vertexs[9] = x;vertexs[10] = yE;
+		vertexs[12] = x;vertexs[13] = y;
+	}else{
+		for (int i = 0;i < 15;i += 3){
+			vertexs[i] = (i == 3 || i == 6) ? 1.0f - woffsetRatio : -1.0f + woffsetRatio;
+			vertexs[i + 1] = (i == 6 || i == 9) ? -1.0f + hoffsetRatio : 1.0f - hoffsetRatio;
+			vertexs[i + 2] = 0.0f;
+		}
+	}
+	return vertexs;
+}
+
+static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay)
+{
+	int lineMarkupType = renderer->cur_draw_t.drawType & 0x00F0;
+	int partMarkupType = renderer->cur_draw_t.drawType & 0x0F00;
+	int analysisType = renderer->cur_draw_t.drawType & 0xF000;
+
+	if (lineMarkupType == GLES_MARKUP_TYPE_WIREFRAME ||
+		lineMarkupType == GLES_MARKUP_TYPE_RATIO ||
+		partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG ||
+		analysisType == GLES_ANALYSIS_TYPE_B_TABLE ||
+		analysisType == GLES_ANALYSIS_TYPE_SCOPEBOX)
+	{
+		IJK_GLES2_Display_use(renderer);
+		if (lineMarkupType == GLES_MARKUP_TYPE_WIREFRAME || 
+			lineMarkupType == GLES_MARKUP_TYPE_RATIO){
+			float centerX = (lineMarkupType == GLES_MARKUP_TYPE_RATIO ? 50 : renderer->cur_draw_t.centerX) / 100.0f;
+			float centerY = (lineMarkupType == GLES_MARKUP_TYPE_RATIO ? 50 : renderer->cur_draw_t.centerY) / 100.0f;
+			float whratio = renderer->cur_draw_t.whRatio;
+			float lineW = renderer->cur_draw_t.lineWidth > 0 ? renderer->cur_draw_t.lineWidth * 1.0f : 1.0f;
+			glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, 
+				IJK_GLES2_Draw_RectVertexs(renderer,whratio,(centerX - 0.5) * 2,( 0.5 - centerY) * 2));
+			glEnableVertexAttribArray(renderer->display_position);
+			glLineWidth(lineW);
+			int argb = renderer->cur_draw_t.argbFrame;
+			glUniform4f(renderer->display_color,((argb >> 16) & 0xFF) / 255.0,
+				((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,((argb >> 24) & 0xFF) / 255.0);
+			glDrawArrays(GL_LINE_STRIP, 0, 5); 
+		}
+		if (analysisType == GLES_ANALYSIS_TYPE_B_TABLE){
+			
+		}else if (analysisType == GLES_ANALYSIS_TYPE_B_TABLE){
+		
+		}
+		if (partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG){
+			
+		}
+	}
+}
+
+void IJK_GLES2_Renderer_changeFShader(IJK_GLES2_Renderer *renderer, const char *fragment_shader_source)
+{
+	if (renderer->fragment_shader){
+		glDetachShader(renderer->program, renderer->fragment_shader); 
+        glDeleteShader(renderer->fragment_shader);
+		renderer->fragment_shader = 0;
+	}
+	renderer->fragment_shader = IJK_GLES2_loadShader(GL_FRAGMENT_SHADER, fragment_shader_source);
+    if (renderer->fragment_shader){
+		glAttachShader(renderer->program, renderer->fragment_shader);   IJK_GLES2_checkError("glAttachShader(fragment)");
+		glLinkProgram(renderer->program);                               IJK_GLES2_checkError("glLinkProgram");
+		renderer->us2_sampler[0] = glGetUniformLocation(renderer->program, "us2_SamplerX"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerX)");
+    	renderer->us2_sampler[1] = glGetUniformLocation(renderer->program, "us2_SamplerY"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerY)");
+    	renderer->us2_sampler[2] = glGetUniformLocation(renderer->program, "us2_SamplerZ"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerZ)");
+    	renderer->um3_color_conversion = glGetUniformLocation(renderer->program, "um3_ColorConversion"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(um3_ColorConversionMatrix)");
+		renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
+		renderer->cunstom_Colors = glGetUniformLocation(renderer->program, "cunstom_Colors");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Colors)");
+		IJK_GLES2_Renderer_use(renderer);
+    }
+}
+
+void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
+	int centerX,int centerY,float ratio,int color,int lineW,const char *filePath)
+{
+	int fsType = cmd & 0x000F;
+	int lineMarkupType = cmd & 0x00F0;
+	int partMarkupType = cmd & 0x0F00;
+	int analysisType = cmd & 0xF000;
+    if ((fsType == 0xF) || (fsType > 0 && fsType < GLES_FS_TYPE_NUMBER)){
+		switch(fsType){
+			case GLES_FS_TYPE_NORMAL:
+			case GLES_FS_TYPE_GRAY:
+				break;
+			case GLES_FS_TYPE_SINGLE_C:
+				renderer->cur_draw_t.argb = color;
+				break;
+			case GLES_FS_TYPE_PSEUDO:
+				renderer->cur_draw_t.pseudoType = type;
+				break;
+			case GLES_FS_TYPE_AUX_FOCUS:
+				renderer->cur_draw_t.argb = color;
+				break;
+			case GLES_FS_TYPE_3DLUT:
+				sprintf(renderer->cur_draw_t.filePath,"%s",filePath);
+				break;
+			case GLES_FS_TYPE_ZEBRA_S:
+				renderer->cur_draw_t.brightLimit = ratio;
+				break;
+		}
+		
+		renderer->cur_draw_t.drawType &= 0xFFF0;
+		renderer->cur_draw_t.drawType |= fsType;
+    }
+	if ((lineMarkupType == 0xF0) || ((lineMarkupType >> 4) > 0 && (lineMarkupType >> 4) < GLES_MARKUP_TYPE_NUMBER)){
+		switch(lineMarkupType){
+			case GLES_MARKUP_TYPE_NORMAL:
+				break;
+			case GLES_MARKUP_TYPE_WIREFRAME:
+				renderer->cur_draw_t.centerX = centerX;
+				renderer->cur_draw_t.centerY = centerY;
+				renderer->cur_draw_t.whRatio = ratio;
+				renderer->cur_draw_t.argbFrame = color;
+				renderer->cur_draw_t.lineWidth = lineW;
+				break;
+			case GLES_MARKUP_TYPE_RATIO:
+				renderer->cur_draw_t.alphaOutside = type;
+				renderer->cur_draw_t.whRatio = ratio;
+				renderer->cur_draw_t.argbFrame = color;
+				renderer->cur_draw_t.lineWidth = lineW;
+				break;
+		}
+		renderer->cur_draw_t.drawType &= 0xFF0F;
+		renderer->cur_draw_t.drawType |= lineMarkupType;
+    }
+	if ((partMarkupType == 0xF00) || ((partMarkupType >> 8) > 0 && (partMarkupType >> 8) < GLES_PARTMARKUP_TYPE_NUMBER)){
+		switch(partMarkupType){
+			case GLES_PARTMARKUP_TYPE_NORMAL:
+				break;
+			case GLES_PARTMARKUP_TYPE_CENTERFLAG:
+				renderer->cur_draw_t.cFlagType = type;
+				break;
+			case GLES_PARTMARKUP_TYPE_PARTSCALE:
+				renderer->cur_draw_t.centerX = centerX;
+				renderer->cur_draw_t.centerY = centerY;
+				renderer->cur_draw_t.partZoomType = type;
+				renderer->cur_draw_t.partZoomRatio = ratio;
+				break;
+		}
+		renderer->cur_draw_t.drawType &= 0xF0FF;
+		renderer->cur_draw_t.drawType |= partMarkupType;
+    }
+	if ((analysisType == 0xF000) || ((analysisType >> 12) > 0 && (analysisType >> 12) < GLES_ANALYSIS_TYPE_NUMBER)){
+		renderer->cur_draw_t.drawType &= 0x0FFF;
+		renderer->cur_draw_t.drawType |= analysisType;
+    }
+	renderer->need_shader_change = true; //need opengl thread to execute
+
+//DEBUG
+	ALOGE("[Filter] ---------------------------------------[Filter]\n");
+	ALOGE(" ---------------- drawType = 0x%x--------\n",renderer->cur_draw_t.drawType);
+	ALOGE(" ---------------- centerX = %d--------\n",renderer->cur_draw_t.centerX);
+	ALOGE(" ---------------- centerY = %d--------\n",renderer->cur_draw_t.centerY);
+	ALOGE(" ---------------- lineWidth = %d--------\n",renderer->cur_draw_t.lineWidth);
+	ALOGE(" ---------------- cFlagType = %d--------\n",renderer->cur_draw_t.cFlagType);
+	ALOGE(" ---------------- partZoomType = %d--------\n",renderer->cur_draw_t.partZoomType);
+	ALOGE(" ---------------- pseudoType = %d--------\n",renderer->cur_draw_t.pseudoType);
+	ALOGE(" ---------------- alphaOutside = %d--------\n",renderer->cur_draw_t.alphaOutside);
+	ALOGE(" ---------------- brightLimit = %d--------\n",renderer->cur_draw_t.brightLimit);
+	ALOGE(" ---------------- partZoomRatio = %f--------\n",renderer->cur_draw_t.partZoomRatio);
+	ALOGE(" ---------------- whRatio = %f--------\n",renderer->cur_draw_t.whRatio);
+	ALOGE(" ---------------- argbFrame = 0x%x--------\n",renderer->cur_draw_t.argbFrame);
+	ALOGE(" ---------------- argb = 0x%x--------\n",renderer->cur_draw_t.argb);
+	ALOGE(" ---------------- filePath = %s--------\n",renderer->cur_draw_t.filePath);
+	ALOGE("[Filter] ---------------------------------------[Filter]\n");
+}
+

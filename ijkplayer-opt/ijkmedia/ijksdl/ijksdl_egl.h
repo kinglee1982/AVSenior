@@ -67,5 +67,7 @@ void        IJK_EGL_freep(IJK_EGL **egl);
 
 EGLBoolean  IJK_EGL_display(IJK_EGL* egl, EGLNativeWindowType window, SDL_VoutOverlay *overlay);
 void        IJK_EGL_terminate(IJK_EGL* egl);
+void IJK_EGL_setFilter(IJK_EGL* egl,int cmd,int type,
+	int centerX,int centerY,float ratio,int color,int lineW,const char *filePath);
 
 #endif

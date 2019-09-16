@@ -44,7 +44,6 @@ static GLboolean yuv420p_use(IJK_GLES2_Renderer *renderer)
     }
 
     glUniformMatrix3fv(renderer->um3_color_conversion, 1, GL_FALSE, IJK_GLES2_getColorMatrix_bt709());
-
     return GL_TRUE;
 }
 
@@ -97,6 +96,14 @@ static GLboolean yuv420p_uploadTexture(IJK_GLES2_Renderer *renderer, SDL_VoutOve
     return GL_TRUE;
 }
 
+static void yuv420p_shaderChange(IJK_GLES2_Renderer *renderer,int fsType)
+{
+	fsType = fsType == 0xF ? 0 : fsType;
+	ALOGI("yuv420p_shaderChange fsType = %d!!\n",fsType);
+	IJK_GLES2_Renderer_changeFShader(renderer,IJK_GLES2_getFragmentShader_yuv420p());
+}
+
+
 IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_yuv420p()
 {
     ALOGI("create render yuv420p\n");
@@ -109,10 +116,13 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_yuv420p()
     renderer->us2_sampler[2] = glGetUniformLocation(renderer->program, "us2_SamplerZ"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerZ)");
 
     renderer->um3_color_conversion = glGetUniformLocation(renderer->program, "um3_ColorConversion"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(um3_ColorConversionMatrix)");
+	renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
+	renderer->cunstom_Colors = glGetUniformLocation(renderer->program, "cunstom_Colors");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Colors)");
 
     renderer->func_use            = yuv420p_use;
     renderer->func_getBufferWidth = yuv420p_getBufferWidth;
     renderer->func_uploadTexture  = yuv420p_uploadTexture;
+	renderer->func_shaderChange   = yuv420p_shaderChange;
 
     return renderer;
 fail:

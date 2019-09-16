@@ -42,4 +42,5 @@ void ijkmp_android_set_volume(JNIEnv *env, IjkMediaPlayer *mp, float left, float
 int  ijkmp_android_get_audio_session_id(JNIEnv *env, IjkMediaPlayer *mp);
 void ijkmp_android_set_mediacodec_select_callback(IjkMediaPlayer *mp, bool (*callback)(void *opaque, ijkmp_mediacodecinfo_context *mcc), void *opaque);
 
+void ijkmp_android_set_gles_filter(IjkMediaPlayer *mp,int cmd,int type,int centerX,int centerY,float ratio,int color,int lineW,const char *filePath);
 #endif
