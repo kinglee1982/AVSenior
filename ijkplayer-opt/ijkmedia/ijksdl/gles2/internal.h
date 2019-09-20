@@ -48,7 +48,8 @@ typedef struct IJK_GLES2_Renderer
     GLuint av4_position; 
     GLuint av2_texcoord;
     GLuint um4_mvp;
-	GLuint cunstom_Params;//[0]cmd,[1]type
+	GLuint cunstom_cmd_type;//[0]cmd,[1]type
+	GLuint cunstom_Params;//params
 	GLuint cunstom_Colors;//r,g,b,a
 
     GLuint us2_sampler[IJK_GLES2_MAX_PLANE];

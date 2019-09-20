@@ -17,7 +17,8 @@
             android:id="@+id/video_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_gravity="center"></tv.danmaku.ijk.media.example.widget.media.IjkVideoView>
+            android:layout_gravity="center">
+        </tv.danmaku.ijk.media.example.widget.media.IjkVideoView>
 
         <TextView
             android:id="@+id/toast_text_view"
@@ -36,6 +37,83 @@
             android:layout_gravity="right|center_vertical"
             android:background="@color/ijk_transparent_dark"
             android:padding="8dp" />
+
+        <Spinner
+            android:id="@+id/filter_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="left|top"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/common_msg_frame_shape"
+            android:layout_marginTop="48dp"
+            android:layout_marginLeft="12dp"
+            android:textColor="#ff000000"
+            android:entries="@array/filtermode"/>
+
+        <Spinner
+            android:id="@+id/ftype_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="center_horizontal|top"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/common_msg_frame_shape"
+            android:layout_marginTop="48dp"
+            android:textColor="#ff000000"
+            android:entries="@array/frametype"/>
+        <Spinner
+            android:id="@+id/fratio_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="right|top"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/common_msg_frame_shape"
+            android:layout_marginTop="48dp"
+            android:layout_marginRight="12dp"
+            android:textColor="#ff000000"
+            android:entries="@array/frameratio"/>
+        <Spinner
+            android:id="@+id/fcolor_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="left|top"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/common_msg_frame_shape"
+            android:layout_marginTop="96dp"
+            android:layout_marginLeft="12dp"
+            android:textColor="#ff000000"
+            android:entries="@array/framecolor"/>
+        <Spinner
+            android:id="@+id/fout_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="center_horizontal|top"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/common_msg_frame_shape"
+            android:layout_marginTop="96dp"
+            android:layout_marginLeft="48dp"
+            android:textColor="#ff000000"
+            android:entries="@array/frameout"/>
+        <Spinner
+            android:id="@+id/flinew_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="center_horizontal|top"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/common_msg_frame_shape"
+            android:layout_marginTop="96dp"
+            android:textColor="#ff000000"
+            android:entries="@array/framelinew"/>
+        <Spinner
+            android:id="@+id/azoom_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_gravity="right|top"
+            android:spinnerMode="dropdown"
+            android:background="@drawable/common_msg_frame_shape"
+            android:layout_marginTop="96dp"
+            android:layout_marginRight="12dp"
+            android:textColor="#ff000000"
+            android:entries="@array/areazoom"/>
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

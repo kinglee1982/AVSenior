@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="filtermode">
+        <item>原色</item>
+        <item>灰度</item>
+        <item>红色</item>
+        <item>黄色</item>
+        <item>橙色</item>
+        <item>绿色</item>
+        <item>蓝色</item>
+        <item>靛色</item>
+        <item>紫色</item>
+        <item>伪彩度</item>
+        <item>辅助对焦</item>
+        <item>斑马纹</item>
+    </string-array>
+
+    <string-array name="frametype">
+        <item>无</item>
+        <item>安全区域标记</item>
+        <item>比例标记</item>
+        <item>中心标记大+</item>
+        <item>中心标记小+</item>
+        <item>中心标记大⚪</item>
+        <item>中心标记小⚪</item>
+        <item>放大镜左</item>
+        <item>放大镜中</item>
+        <item>放大镜右</item>
+    </string-array>
+
+    <string-array name="frameratio">
+        <item>1:1</item>
+        <item>4:3</item>
+        <item>13:9</item>
+        <item>14:9</item>
+        <item>16:9</item>
+        <item>2:1</item>
+    </string-array>
+    <string-array name="framecolor">
+        <item>红色</item>
+        <item>绿色</item>
+        <item>蓝色</item>
+        <item>白色</item>
+        <item>黄色</item>
+    </string-array>
+    <string-array name="frameout">
+        <item>0%</item>
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+        <item>全黑</item>
+    </string-array>
+    <string-array name="framelinew">
+        <item>2</item>
+        <item>4</item>
+        <item>8</item>
+        <item>12</item>
+        <item>16</item>
+    </string-array>
+    <string-array name="areazoom">
+        <item>10%</item>
+        <item>30%</item>
+        <item>60%</item>
+        <item>90%</item>
+        <item>100%</item>
+    </string-array>
+</resources>

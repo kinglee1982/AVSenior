@@ -38,6 +38,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.Spinner;
 import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -67,11 +69,27 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
     private DrawerLayout mDrawerLayout;
     private ViewGroup mRightDrawer;
     private TextView mRTimeTextView;
+    private Spinner mFilterSpinner;
+
+    private Spinner mFTypeSpinner;
+    private Spinner mFRatioSpinner;
+    private Spinner mFColorSpinner;
+    private Spinner mFOutSpinner;
+    private Spinner mLineWSpinner;
+    private Spinner mAZoomSpinner;
 
     private Settings mSettings;
     private boolean mBackPressed;
     private long mRecordStartTime;
     private PermissionHelper mPermissionHelper;
+    private static int colors[] = {0xFFFF0000,0xFFFFFF00,
+            0xFFFF6100,0xFF00FF00,0xFF0000FF,0xFFFF0000,0xFF082E54};
+    private static float ratios[] = {1.0f,4.0f/3.0f,13.0f/9,14.0f/9,16.0f/9,2.0f};
+    private static int fcolors[] = {0xFFFF0000,0xFF00FF00,0xFF0000FF,0xFFFFFFFF,0xFFFFFF00};
+    private static int fOutAlpha[] = {0xFF,0xBD,0x7F,0x3F,0x00};
+    private static int fLineW[] = {2,4,8,12,16};
+    private static int fAZoom[] = {0x0A,0x1E,0x3C,0x5A,0x64};
+    private static int framecmd[] = {0xF0,0x10,0x20,0x100,0x100,0x100,0x100,0x30,0x30,0x30};
     public static Intent newIntent(Context context, String videoPath, String videoTitle) {
         Intent intent = new Intent(context, VideoActivity.class);
         intent.putExtra("videoPath", videoPath);
@@ -151,7 +169,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         });
         int vType = IjkMediaPlayer.IJK_PLAY_LIVE;
         if (mVideoPath.endsWith("mp4") || mVideoPath.endsWith("MP4")){
-            //findViewById(R.id.btn_op_camera).setVisibility(View.GONE);
+            findViewById(R.id.btn_op_camera).setVisibility(View.GONE);
             vType = IjkMediaPlayer.IJK_PLAY_PLAYBACK;
         }
         mRTimeTextView = (TextView) findViewById(R.id.record_time_view);
@@ -159,6 +177,22 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         mHudView = (TableLayout) findViewById(R.id.hud_view);
         mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         mRightDrawer = (ViewGroup) findViewById(R.id.right_drawer);
+
+        mFilterSpinner = (Spinner) findViewById(R.id.filter_spinner);
+        mFTypeSpinner = (Spinner)findViewById(R.id.ftype_spinner);
+        mFRatioSpinner = (Spinner)findViewById(R.id.fratio_spinner);
+        mFColorSpinner = (Spinner)findViewById(R.id.fcolor_spinner);
+        mFOutSpinner = (Spinner)findViewById(R.id.fout_spinner);
+        mLineWSpinner = (Spinner)findViewById(R.id.flinew_spinner);
+        mAZoomSpinner = (Spinner)findViewById(R.id.azoom_spinner);
+
+        mFilterSpinner.setOnItemSelectedListener(spinnerListner);
+        mFTypeSpinner.setOnItemSelectedListener(spinnerListner);
+        mFRatioSpinner.setOnItemSelectedListener(spinnerListner);
+        mFColorSpinner.setOnItemSelectedListener(spinnerListner);
+        mFOutSpinner.setOnItemSelectedListener(spinnerListner);
+        mAZoomSpinner.setOnItemSelectedListener(spinnerListner);
+        mLineWSpinner.setOnItemSelectedListener(spinnerListner);
 
         mDrawerLayout.setScrimColor(Color.TRANSPARENT);
 
@@ -182,19 +216,47 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         }
         mVideoView.start();
     }
-    static int coutndd = 0;
-    private void startRecord(){
-        if (mVideoPath.endsWith("mp4") || mVideoPath.endsWith("MP4")){
-            coutndd ++;
-            if (coutndd > 10)coutndd = 1;
-            int cmd = coutndd <= 6 ? coutndd : (coutndd == 7 ? 0x10 :
-                    (coutndd == 8 ? 0x20 : (coutndd == 9 ? 0x100 : 0x200)));
-            mVideoView.setEGLFilter(cmd,0x7F,50,50,1.2f,0xFF0000FF,12,"dd");
-        }else {
-            mVideoView.appStartRecord("/sdcard/DCIM/Camera/test.mp4", 30);
-            mHandler.sendEmptyMessageDelayed(MSG_TYPE_RECORDING, 2000);
-            mRecordStartTime = System.currentTimeMillis() / 1000;
+    private Spinner.OnItemSelectedListener spinnerListner =
+            new Spinner.OnItemSelectedListener() {
+        @Override
+        public void onItemSelected(AdapterView<?> arg0, View arg1,
+            int arg2, long arg3) {
+            if (arg0 == mFilterSpinner) {
+                int cmd = arg2;
+                int color = 0xffff0000;
+                if (arg2 >= 2 && arg2 <= 8) {
+                    cmd = 0x2;
+                    color = colors[arg2 - 2];
+                }
+                if (arg2 == 9) cmd = 0x3;
+                if (arg2 == 10) cmd = 0x4;
+                if (arg2 == 11) cmd = 0x6;
+                if (arg2 == 0) cmd = 0xF;
+                mVideoView.setEGLFilter(cmd, 0x0, 0, 0, 0.0f, color, 0, "");
+            }else if (arg0 != mFilterSpinner){
+                int idxType = arg0 == mFTypeSpinner ? arg2 : mFTypeSpinner.getSelectedItemPosition();
+                int idxRatio = arg0 == mFRatioSpinner ? arg2 : mFRatioSpinner.getSelectedItemPosition();
+                int idxColor = arg0 == mFColorSpinner ? arg2 : mFColorSpinner.getSelectedItemPosition();
+                int idxFout = arg0 == mFOutSpinner ? arg2 : mFOutSpinner.getSelectedItemPosition();
+                int idxFLineW = arg0 == mLineWSpinner ? arg2 : mLineWSpinner.getSelectedItemPosition();
+                int idxAZoom = arg0 == mAZoomSpinner ? arg2 : mAZoomSpinner.getSelectedItemPosition();
+                int cmd = framecmd[idxType];
+
+                float rati = 2.0f;//ratios[idxRatio]
+                mVideoView.setEGLFilter(cmd, cmd == 0x10 ? fAZoom[idxAZoom] : (
+                        cmd == 0x100 ? idxType - 3: fOutAlpha[idxFout]),
+                        30, 30, rati, fcolors[idxColor],
+                        fLineW[idxFLineW], "");
+            }
         }
+        @Override
+        public void onNothingSelected(AdapterView<?> arg0) {
+        }
+    };
+    private void startRecord(){
+       mVideoView.appStartRecord("/sdcard/DCIM/Camera/test.mp4", 30);
+       mHandler.sendEmptyMessageDelayed(MSG_TYPE_RECORDING, 2000);
+       mRecordStartTime = System.currentTimeMillis() / 1000;
     }
 
     private void cameraNotify(){

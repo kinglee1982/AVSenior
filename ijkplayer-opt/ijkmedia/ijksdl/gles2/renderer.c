@@ -420,7 +420,7 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 {
 	int type = (renderer->cur_draw_t.drawType & 0xF) == GLES_FS_TYPE_PSEUDO ? 
 		renderer->cur_draw_t.pseudoType : renderer->cur_draw_t.brightLimit;
-	int arg1 = 0,arg2 = 0;
+	float arg1 = 0.0f,arg2 = 0.0f,arg3 = 0.0f,arg4 = 0.0f;
 	if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO){
 		int fw = renderer->frame_width;
 		int fh = renderer->frame_height;
@@ -428,10 +428,18 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		float orginWHRatio = fw * 1.0f / fh;
 		float woffsetRatio = whratio <= orginWHRatio ? (fw - fh * whratio) / fw : 0.0f;
 		float hoffsetRatio = whratio <= orginWHRatio ? 0.0f : (fh - fw / whratio) / fh;
-		arg1 = (int)(woffsetRatio * 1000) / 2;
-		arg2 = (int)(hoffsetRatio * 1000) / 2;
+		arg1 = woffsetRatio / 2.0;
+		arg2 = hoffsetRatio / 2.0;
+		type = GLES_MARKUP_RATIO_TYPE;
+	}else if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_PARTSCALE){
+		arg1 = renderer->cur_draw_t.centerX / 100.0f;
+		arg2 = renderer->cur_draw_t.centerY / 100.0f;
+		arg3 = renderer->cur_draw_t.partZoomRatio;
+		arg4 = renderer->cur_draw_t.partZoomType / 1.0f;
+		type = GLES_MARKUP_PARTSCALE_TYPE;
 	}
-	glUniform4i(renderer->cunstom_Params,renderer->cur_draw_t.drawType & 0xF,type,arg1,arg2);
+	glUniform2i(renderer->cunstom_cmd_type,renderer->cur_draw_t.drawType & 0xF,type);
+	glUniform4f(renderer->cunstom_Params,arg1,arg2,arg3,arg4);
 	
 	int argb = renderer->cur_draw_t.argb;
 	float alpha = (renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO ? 
@@ -548,8 +556,6 @@ static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float wh
 	float orginWHRatio = fw * 1.0f / fh;
 	float woffsetRatio = whratio <= orginWHRatio ? (fw - fh * whratio) / fw : 0.0f;
 	float hoffsetRatio = whratio <= orginWHRatio ? 0.0f : (fh - fw / whratio) / fh;
-	ALOGE(" ----IJK_GLES2_Draw_RectVertexs- orginWHRatio = %f--fw %d -fh %d ----\n",
-		orginWHRatio,fw,fh);
 	if (lineMarkupType == GLES_MARKUP_TYPE_WIREFRAME){
 		float x = -0.5f + woffsetRatio / 2.0f + centerX;
 		float y = 0.5f - hoffsetRatio / 2.0f + centerY;
@@ -565,6 +571,20 @@ static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float wh
 		}
 		x = x < -1.0f ? -1.0f : x;
 		y = y > 1.0f ? 1.0f : y;
+
+		float offsetx = 0.0f,offsety = 0.0f;
+		if (whratio <= orginWHRatio){
+			offsety = renderer->cur_draw_t.wireFrameRatio - 0.5f; 
+			offsetx = offsety / orginWHRatio * whratio; 
+		}else{
+			offsetx = renderer->cur_draw_t.wireFrameRatio - 0.5f; 
+			offsety = offsetx * orginWHRatio / whratio; 
+		}
+		x -= offsetx;
+		y += offsety;
+		xE += offsetx;
+		yE -= offsety;
+		
 		vertexs[0] = x;vertexs[1] = y;
 		vertexs[3] = xE;vertexs[4] = y;
 		vertexs[6] = xE;vertexs[7] = yE;
@@ -588,6 +608,7 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 
 	if (lineMarkupType == GLES_MARKUP_TYPE_WIREFRAME ||
 		lineMarkupType == GLES_MARKUP_TYPE_RATIO ||
+		lineMarkupType == GLES_MARKUP_TYPE_PARTSCALE ||
 		partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG ||
 		analysisType == GLES_ANALYSIS_TYPE_B_TABLE ||
 		analysisType == GLES_ANALYSIS_TYPE_SCOPEBOX)
@@ -607,6 +628,9 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 			glUniform4f(renderer->display_color,((argb >> 16) & 0xFF) / 255.0,
 				((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,((argb >> 24) & 0xFF) / 255.0);
 			glDrawArrays(GL_LINE_STRIP, 0, 5); 
+			glDisableVertexAttribArray(renderer->display_position);
+		}else if (lineMarkupType == GLES_MARKUP_TYPE_PARTSCALE){
+			
 		}
 		if (analysisType == GLES_ANALYSIS_TYPE_B_TABLE){
 			
@@ -614,6 +638,20 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 		
 		}
 		if (partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG){
+			float orginWHRatio = renderer->frame_width * 1.0f / renderer->frame_height;
+			float multi = renderer->cur_draw_t.cFlagType == 0 ? 1.0f : 0.5f;
+			float vertics[] = {-0.2f / orginWHRatio * multi,0.0f,0.0f,
+				0.2f / orginWHRatio * multi,0.0f,0.0f,
+				0.0f,0.2f * multi,0.0f,
+				0.0f,-0.2f * multi,0.0f};
+			glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertics);
+			glEnableVertexAttribArray(renderer->display_position);
+			glLineWidth(renderer->cur_draw_t.cFlagType == 0 ? 48 : 16);
+			int argb = renderer->cur_draw_t.argbFrame;
+			glUniform4f(renderer->display_color,((argb >> 16) & 0xFF) / 255.0,
+				((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,((argb >> 24) & 0xFF) / 255.0);
+			glDrawArrays(GL_LINES, 0, 5); 
+			glDisableVertexAttribArray(renderer->display_position);
 			
 		}
 	}
@@ -634,6 +672,7 @@ void IJK_GLES2_Renderer_changeFShader(IJK_GLES2_Renderer *renderer, const char *
     	renderer->us2_sampler[1] = glGetUniformLocation(renderer->program, "us2_SamplerY"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerY)");
     	renderer->us2_sampler[2] = glGetUniformLocation(renderer->program, "us2_SamplerZ"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerZ)");
     	renderer->um3_color_conversion = glGetUniformLocation(renderer->program, "um3_ColorConversion"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(um3_ColorConversionMatrix)");
+		renderer->cunstom_cmd_type = glGetUniformLocation(renderer->program, "cunstom_cmd_type");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_cmd_type)");
 		renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
 		renderer->cunstom_Colors = glGetUniformLocation(renderer->program, "cunstom_Colors");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Colors)");
 		IJK_GLES2_Renderer_use(renderer);
@@ -682,12 +721,19 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 				renderer->cur_draw_t.whRatio = ratio;
 				renderer->cur_draw_t.argbFrame = color;
 				renderer->cur_draw_t.lineWidth = lineW;
+				renderer->cur_draw_t.wireFrameRatio = type / 100.0f;
 				break;
 			case GLES_MARKUP_TYPE_RATIO:
 				renderer->cur_draw_t.alphaOutside = type;
 				renderer->cur_draw_t.whRatio = ratio;
 				renderer->cur_draw_t.argbFrame = color;
 				renderer->cur_draw_t.lineWidth = lineW;
+				break;
+			case GLES_MARKUP_TYPE_PARTSCALE:
+				renderer->cur_draw_t.centerX = centerX;
+				renderer->cur_draw_t.centerY = centerY;
+				renderer->cur_draw_t.partZoomType = type;
+				renderer->cur_draw_t.partZoomRatio = ratio;
 				break;
 		}
 		renderer->cur_draw_t.drawType &= 0xFF0F;
@@ -698,13 +744,9 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 			case GLES_PARTMARKUP_TYPE_NORMAL:
 				break;
 			case GLES_PARTMARKUP_TYPE_CENTERFLAG:
-				renderer->cur_draw_t.cFlagType = type;
-				break;
-			case GLES_PARTMARKUP_TYPE_PARTSCALE:
-				renderer->cur_draw_t.centerX = centerX;
-				renderer->cur_draw_t.centerY = centerY;
-				renderer->cur_draw_t.partZoomType = type;
-				renderer->cur_draw_t.partZoomRatio = ratio;
+				if (type >= GLES_CENTER_FLAG_BIGPLUS && type <= GLES_CENTER_FLAG_SMALLCIRCLE){
+					renderer->cur_draw_t.cFlagType = type;
+				}
 				break;
 		}
 		renderer->cur_draw_t.drawType &= 0xF0FF;

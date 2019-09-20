@@ -45,6 +45,8 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define IJK_GLES2_checkError_DEBUG(op) IJK_GLES2_checkError(op)
 #endif
 
+#define GLES_MARKUP_RATIO_TYPE 0x1111
+#define GLES_MARKUP_PARTSCALE_TYPE 0x2222
 #define GLES_FLOAT_BYTE_SIZE 4
 #define GLES_VERTEX_COORD_NUM 3
 #define GLES_RECT_POINTS_COORD_NUM (GLES_VERTEX_COORD_NUM * 5)
@@ -61,16 +63,16 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 
 //for line markup Type 0x00--0xf0
 #define GLES_MARKUP_TYPE_NORMAL      0xF0
-#define GLES_MARKUP_TYPE_WIREFRAME   0x10 //centerX,centerY,ratio,color,lineW
+#define GLES_MARKUP_TYPE_WIREFRAME   0x10 //centerX,centerY,ratio,color,lineW,type(wireFrameRatio)
 #define GLES_MARKUP_TYPE_RATIO       0x20 //ratio,color,lineW ,type(for alphaOutside)
-#define GLES_MARKUP_TYPE_NUMBER      ((GLES_MARKUP_TYPE_RATIO >> 4) + 1)
+#define GLES_MARKUP_TYPE_PARTSCALE    0x30 //centerX,centerY,type(partZoomType),ratio(Scaling ratio)
+#define GLES_MARKUP_TYPE_NUMBER      ((GLES_MARKUP_TYPE_PARTSCALE >> 4) + 1)
 //end line markup Type
 
 //for part markup Type 0x000--0xf00
 #define GLES_PARTMARKUP_TYPE_NORMAL       0xF00
 #define GLES_PARTMARKUP_TYPE_CENTERFLAG   0x100 //type
-#define GLES_PARTMARKUP_TYPE_PARTSCALE    0x200 //centerX,centerY,type(partZoomType),ratio(Scaling ratio)
-#define GLES_PARTMARKUP_TYPE_NUMBER       ((GLES_PARTMARKUP_TYPE_PARTSCALE >> 8) + 1)
+#define GLES_PARTMARKUP_TYPE_NUMBER       ((GLES_PARTMARKUP_TYPE_CENTERFLAG >> 8) + 1)
 //end part markup Type
 
 //for analysis Type 0x0000--0xf000
@@ -79,6 +81,14 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_ANALYSIS_TYPE_SCOPEBOX    0x2000 //
 #define GLES_ANALYSIS_TYPE_NUMBER       ((GLES_ANALYSIS_TYPE_SCOPEBOX >> 12) + 1)
 //end analysis Type
+
+//for center flag Type 0-3
+#define GLES_CENTER_FLAG_BIGPLUS        0
+#define GLES_CENTER_FLAG_SMALLPLUS      1
+#define GLES_CENTER_FLAG_BIGCIRCLE      2 
+#define GLES_CENTER_FLAG_SMALLCIRCLE    3
+//end center flag Type
+
 
 typedef struct GLES2_Draw_Type_t{
 	unsigned short drawType;
@@ -90,7 +100,8 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char pseudoType; //pseudo type 0-2
 	unsigned char alphaOutside; //0x00-0xff
 	unsigned char brightLimit; //0x00-0xff  for zebra-stripe
-	float partZoomRatio;
+	float wireFrameRatio;//frame scale
+	float partZoomRatio;//part scale
 	float whRatio;// w / h
 	int argbFrame;//color for line frame
 	int argb;//color

@@ -88,6 +88,14 @@ public class FileListFragmentFix extends Fragment {
         map2.put("image",R.drawable.ic_theme_play_arrow);
         map2.put("content","/sdcard/DCIM/insta360_1080p_25M.mp4");
         lists.add(map2);
+        Map<String,Object> map3 =new HashMap<>();
+        map3.put("image",R.drawable.ic_theme_play_arrow);
+        map3.put("content","/sdcard/guoshanche.mp4");
+        lists.add(map3);
+        Map<String,Object> map4 =new HashMap<>();
+        map4.put("image",R.drawable.ic_theme_play_arrow);
+        map4.put("content","/sdcard/1080i.mp4");
+        lists.add(map4);
         Activity activity = getActivity();
         mAdapter = new SimpleAdapter(activity,lists,R.layout.fragment_file_list_item
                 ,new String[]{"image","content"}

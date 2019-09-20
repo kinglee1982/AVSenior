@@ -116,6 +116,7 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_yuv420p()
     renderer->us2_sampler[2] = glGetUniformLocation(renderer->program, "us2_SamplerZ"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerZ)");
 
     renderer->um3_color_conversion = glGetUniformLocation(renderer->program, "um3_ColorConversion"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(um3_ColorConversionMatrix)");
+	renderer->cunstom_cmd_type = glGetUniformLocation(renderer->program, "cunstom_cmd_type");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_cmd_type)");
 	renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
 	renderer->cunstom_Colors = glGetUniformLocation(renderer->program, "cunstom_Colors");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Colors)");
 
