@@ -53,9 +53,9 @@
     <string-array name="framelinew">
         <item>2</item>
         <item>4</item>
+        <item>6</item>
         <item>8</item>
-        <item>12</item>
-        <item>16</item>
+        <item>10</item>
     </string-array>
     <string-array name="areazoom">
         <item>10%</item>
@@ -63,5 +63,11 @@
         <item>60%</item>
         <item>90%</item>
         <item>100%</item>
+    </string-array>
+
+    <string-array name="scalemulti">
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
     </string-array>
 </resources>

@@ -24,6 +24,7 @@
 static const char g_shader[] = IJK_GLES_STRING(
     precision highp float;
     varying   highp vec2 vv2_Texcoord;
+	varying   highp vec4 gPosition;
     attribute highp vec4 av4_Position;
     attribute highp vec2 av2_Texcoord;
     uniform         mat4 um4_ModelViewProjection;
@@ -32,6 +33,7 @@ static const char g_shader[] = IJK_GLES_STRING(
     {
         gl_Position  = um4_ModelViewProjection * av4_Position;
         vv2_Texcoord = av2_Texcoord.xy;
+		gPosition = gl_Position;
     }
 );
 

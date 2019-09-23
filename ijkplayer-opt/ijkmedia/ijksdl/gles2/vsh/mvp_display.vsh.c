@@ -24,7 +24,7 @@
 static const char g_shader[] = IJK_GLES_STRING(
     precision highp float;
     attribute highp vec4 display_position;
-	attribute highp vec4 display_params;
+	uniform highp vec4 display_params;
     uniform         mat4 display_mvp;
 
     void main()

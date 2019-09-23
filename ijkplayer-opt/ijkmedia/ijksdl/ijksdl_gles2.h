@@ -65,7 +65,7 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_MARKUP_TYPE_NORMAL      0xF0
 #define GLES_MARKUP_TYPE_WIREFRAME   0x10 //centerX,centerY,ratio,color,lineW,type(wireFrameRatio)
 #define GLES_MARKUP_TYPE_RATIO       0x20 //ratio,color,lineW ,type(for alphaOutside)
-#define GLES_MARKUP_TYPE_PARTSCALE    0x30 //centerX,centerY,type(partZoomType),ratio(Scaling ratio)
+#define GLES_MARKUP_TYPE_PARTSCALE    0x30 //centerX,centerY,type(partZoomRatio),ratio(Scaling ratio)
 #define GLES_MARKUP_TYPE_NUMBER      ((GLES_MARKUP_TYPE_PARTSCALE >> 4) + 1)
 //end line markup Type
 
@@ -96,12 +96,12 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char centerY;//0-100 percent
 	unsigned char lineWidth; //pixel
 	unsigned char cFlagType; //center flag draw type + or .0-3
-	unsigned char partZoomType; //large, medium and small 0-2
 	unsigned char pseudoType; //pseudo type 0-2
 	unsigned char alphaOutside; //0x00-0xff
 	unsigned char brightLimit; //0x00-0xff  for zebra-stripe
 	float wireFrameRatio;//frame scale
-	float partZoomRatio;//part scale
+	float partZoomScale;//part scale
+	float partZoomRatio; //part ratio
 	float whRatio;// w / h
 	int argbFrame;//color for line frame
 	int argb;//color

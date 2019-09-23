@@ -150,7 +150,7 @@ static void IJK_GLES2_Display_create(IJK_GLES2_Renderer *renderer)
 
 
     renderer->display_position   = glGetAttribLocation(renderer->display_program, "display_position");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(display_position)");
-	renderer->display_params = glGetAttribLocation(renderer->display_program, "display_params");            IJK_GLES2_checkError_TRACE("glGetAttribLocation(display_params)");
+	renderer->display_params = glGetUniformLocation(renderer->display_program, "display_params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_params)");
     renderer->display_mvp        = glGetUniformLocation(renderer->display_program, "display_mvp");    IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_mvp)");
 	renderer->display_color = glGetUniformLocation(renderer->display_program, "display_color");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_color)");
     return;
@@ -421,6 +421,7 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 	int type = (renderer->cur_draw_t.drawType & 0xF) == GLES_FS_TYPE_PSEUDO ? 
 		renderer->cur_draw_t.pseudoType : renderer->cur_draw_t.brightLimit;
 	float arg1 = 0.0f,arg2 = 0.0f,arg3 = 0.0f,arg4 = 0.0f;
+	float plusarg1 = 0.0f,plusarg2 = 0.0f,plusarg3 = 0.0f,plusarg4 = 0.0f;
 	if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO){
 		int fw = renderer->frame_width;
 		int fh = renderer->frame_height;
@@ -432,14 +433,19 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		arg2 = hoffsetRatio / 2.0;
 		type = GLES_MARKUP_RATIO_TYPE;
 	}else if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_PARTSCALE){
-		arg1 = renderer->cur_draw_t.centerX / 100.0f;
-		arg2 = renderer->cur_draw_t.centerY / 100.0f;
-		arg3 = renderer->cur_draw_t.partZoomRatio;
-		arg4 = renderer->cur_draw_t.partZoomType / 1.0f;
+		arg1 = (-0.5 + renderer->cur_draw_t.centerX / 100.0f) * 2.0;
+		arg2 = (0.5 - renderer->cur_draw_t.centerY / 100.0f) * 2.0;
+		arg3 = renderer->cur_draw_t.partZoomScale;
+		arg4 = renderer->cur_draw_t.partZoomRatio;
+
+		plusarg1 = renderer->frame_width * 1.0f / renderer->frame_height;
+		plusarg2 = ((arg1 + 1.0) / 2.0) / (arg3 == 3.0f ? 1.5 : (arg3 == 4.0f ? 1.325 : 2.0));
+		plusarg3 = ((-arg2 + 1.0) / 2.0) / (arg3 == 3.0f ? 1.5 : (arg3 == 4.0f ? 1.325 : 2.0));
 		type = GLES_MARKUP_PARTSCALE_TYPE;
 	}
 	glUniform2i(renderer->cunstom_cmd_type,renderer->cur_draw_t.drawType & 0xF,type);
 	glUniform4f(renderer->cunstom_Params,arg1,arg2,arg3,arg4);
+	glUniform4f(renderer->cunstom_Params_plus,plusarg1,plusarg2,plusarg3,plusarg4);
 	
 	int argb = renderer->cur_draw_t.argb;
 	float alpha = (renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO ? 
@@ -639,20 +645,33 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 		}
 		if (partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG){
 			float orginWHRatio = renderer->frame_width * 1.0f / renderer->frame_height;
-			float multi = renderer->cur_draw_t.cFlagType == 0 ? 1.0f : 0.5f;
-			float vertics[] = {-0.2f / orginWHRatio * multi,0.0f,0.0f,
-				0.2f / orginWHRatio * multi,0.0f,0.0f,
-				0.0f,0.2f * multi,0.0f,
-				0.0f,-0.2f * multi,0.0f};
-			glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertics);
-			glEnableVertexAttribArray(renderer->display_position);
-			glLineWidth(renderer->cur_draw_t.cFlagType == 0 ? 48 : 16);
-			int argb = renderer->cur_draw_t.argbFrame;
-			glUniform4f(renderer->display_color,((argb >> 16) & 0xFF) / 255.0,
-				((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,((argb >> 24) & 0xFF) / 255.0);
-			glDrawArrays(GL_LINES, 0, 5); 
-			glDisableVertexAttribArray(renderer->display_position);
-			
+			if (renderer->cur_draw_t.cFlagType <= 1){
+				float multi = renderer->cur_draw_t.cFlagType == 0 ? 1.0f : 0.5f;
+				float ratio = 0.16f;
+				float vertics[] = {-ratio / orginWHRatio * multi,0.0f,0.0f,
+					ratio / orginWHRatio * multi,0.0f,0.0f,
+					0.0f,ratio * multi,0.0f,
+					0.0f,-ratio * multi,0.0f};
+				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertics);
+				glEnableVertexAttribArray(renderer->display_position);
+				glLineWidth(renderer->cur_draw_t.cFlagType == 0 ? 10 : 5);
+				int argb = renderer->cur_draw_t.argbFrame;
+				glUniform4f(renderer->display_color,((argb >> 16) & 0xFF) / 255.0,
+					((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,((argb >> 24) & 0xFF) / 255.0);
+				glDrawArrays(GL_LINES, 0, 5); 
+				glDisableVertexAttribArray(renderer->display_position);
+			}else{
+				float vertics[] = {0.0f,0.0f,0.0f};
+				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertics);
+				glEnableVertexAttribArray(renderer->display_position);
+				float size = renderer->cur_draw_t.cFlagType == 2 ? renderer->frame_height * 0.07f : renderer->frame_height * 0.04f;
+				glUniform4f(renderer->display_params,size,0.0f,0.0f,0.0f);
+				int argb = renderer->cur_draw_t.argbFrame;
+				glUniform4f(renderer->display_color,((argb >> 16) & 0xFF) / 255.0,
+					((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,((argb >> 24) & 0xFF) / 255.0);
+				glDrawArrays(GL_POINTS, 0, 1); 
+				glDisableVertexAttribArray(renderer->display_position);
+			}
 		}
 	}
 }
@@ -674,6 +693,7 @@ void IJK_GLES2_Renderer_changeFShader(IJK_GLES2_Renderer *renderer, const char *
     	renderer->um3_color_conversion = glGetUniformLocation(renderer->program, "um3_ColorConversion"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(um3_ColorConversionMatrix)");
 		renderer->cunstom_cmd_type = glGetUniformLocation(renderer->program, "cunstom_cmd_type");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_cmd_type)");
 		renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
+		renderer->cunstom_Params_plus = glGetUniformLocation(renderer->program, "cunstom_Params_plus");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params_plus)");
 		renderer->cunstom_Colors = glGetUniformLocation(renderer->program, "cunstom_Colors");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Colors)");
 		IJK_GLES2_Renderer_use(renderer);
     }
@@ -732,8 +752,8 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 			case GLES_MARKUP_TYPE_PARTSCALE:
 				renderer->cur_draw_t.centerX = centerX;
 				renderer->cur_draw_t.centerY = centerY;
-				renderer->cur_draw_t.partZoomType = type;
-				renderer->cur_draw_t.partZoomRatio = ratio;
+				renderer->cur_draw_t.partZoomRatio = type / 10.0f;
+				renderer->cur_draw_t.partZoomScale = ratio;
 				break;
 		}
 		renderer->cur_draw_t.drawType &= 0xFF0F;
@@ -746,6 +766,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 			case GLES_PARTMARKUP_TYPE_CENTERFLAG:
 				if (type >= GLES_CENTER_FLAG_BIGPLUS && type <= GLES_CENTER_FLAG_SMALLCIRCLE){
 					renderer->cur_draw_t.cFlagType = type;
+					renderer->cur_draw_t.argbFrame = color;
 				}
 				break;
 		}
@@ -765,11 +786,11 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 	ALOGE(" ---------------- centerY = %d--------\n",renderer->cur_draw_t.centerY);
 	ALOGE(" ---------------- lineWidth = %d--------\n",renderer->cur_draw_t.lineWidth);
 	ALOGE(" ---------------- cFlagType = %d--------\n",renderer->cur_draw_t.cFlagType);
-	ALOGE(" ---------------- partZoomType = %d--------\n",renderer->cur_draw_t.partZoomType);
+	ALOGE(" ---------------- partZoomRatio = %f--------\n",renderer->cur_draw_t.partZoomRatio);
 	ALOGE(" ---------------- pseudoType = %d--------\n",renderer->cur_draw_t.pseudoType);
 	ALOGE(" ---------------- alphaOutside = %d--------\n",renderer->cur_draw_t.alphaOutside);
 	ALOGE(" ---------------- brightLimit = %d--------\n",renderer->cur_draw_t.brightLimit);
-	ALOGE(" ---------------- partZoomRatio = %f--------\n",renderer->cur_draw_t.partZoomRatio);
+	ALOGE(" ---------------- partZoomScale = %f--------\n",renderer->cur_draw_t.partZoomScale);
 	ALOGE(" ---------------- whRatio = %f--------\n",renderer->cur_draw_t.whRatio);
 	ALOGE(" ---------------- argbFrame = 0x%x--------\n",renderer->cur_draw_t.argbFrame);
 	ALOGE(" ---------------- argb = 0x%x--------\n",renderer->cur_draw_t.argb);

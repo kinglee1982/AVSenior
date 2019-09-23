@@ -50,8 +50,8 @@ typedef struct IJK_GLES2_Renderer
     GLuint um4_mvp;
 	GLuint cunstom_cmd_type;//[0]cmd,[1]type
 	GLuint cunstom_Params;//params
-	GLuint cunstom_Colors;//r,g,b,a
-
+	GLuint cunstom_Params_plus;//params plus
+	GLuint cunstom_Colors;//colors
     GLuint us2_sampler[IJK_GLES2_MAX_PLANE];
     GLuint um3_color_conversion;
 //for display texture

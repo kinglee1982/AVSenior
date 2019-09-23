@@ -74,6 +74,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
     private Spinner mFTypeSpinner;
     private Spinner mFRatioSpinner;
     private Spinner mFColorSpinner;
+    private Spinner mScaleSpinner;
     private Spinner mFOutSpinner;
     private Spinner mLineWSpinner;
     private Spinner mAZoomSpinner;
@@ -87,9 +88,10 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
     private static float ratios[] = {1.0f,4.0f/3.0f,13.0f/9,14.0f/9,16.0f/9,2.0f};
     private static int fcolors[] = {0xFFFF0000,0xFF00FF00,0xFF0000FF,0xFFFFFFFF,0xFFFFFF00};
     private static int fOutAlpha[] = {0xFF,0xBD,0x7F,0x3F,0x00};
-    private static int fLineW[] = {2,4,8,12,16};
+    private static int fLineW[] = {2,4,6,8,10};
     private static int fAZoom[] = {0x0A,0x1E,0x3C,0x5A,0x64};
     private static int framecmd[] = {0xF0,0x10,0x20,0x100,0x100,0x100,0x100,0x30,0x30,0x30};
+    private static float fScale[] = {2.0f,3.0f,4.0f};
     public static Intent newIntent(Context context, String videoPath, String videoTitle) {
         Intent intent = new Intent(context, VideoActivity.class);
         intent.putExtra("videoPath", videoPath);
@@ -182,6 +184,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         mFTypeSpinner = (Spinner)findViewById(R.id.ftype_spinner);
         mFRatioSpinner = (Spinner)findViewById(R.id.fratio_spinner);
         mFColorSpinner = (Spinner)findViewById(R.id.fcolor_spinner);
+        mScaleSpinner = (Spinner)findViewById(R.id.scale_spinner);
         mFOutSpinner = (Spinner)findViewById(R.id.fout_spinner);
         mLineWSpinner = (Spinner)findViewById(R.id.flinew_spinner);
         mAZoomSpinner = (Spinner)findViewById(R.id.azoom_spinner);
@@ -190,6 +193,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         mFTypeSpinner.setOnItemSelectedListener(spinnerListner);
         mFRatioSpinner.setOnItemSelectedListener(spinnerListner);
         mFColorSpinner.setOnItemSelectedListener(spinnerListner);
+        mScaleSpinner.setOnItemSelectedListener(spinnerListner);
         mFOutSpinner.setOnItemSelectedListener(spinnerListner);
         mAZoomSpinner.setOnItemSelectedListener(spinnerListner);
         mLineWSpinner.setOnItemSelectedListener(spinnerListner);
@@ -237,15 +241,18 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
                 int idxType = arg0 == mFTypeSpinner ? arg2 : mFTypeSpinner.getSelectedItemPosition();
                 int idxRatio = arg0 == mFRatioSpinner ? arg2 : mFRatioSpinner.getSelectedItemPosition();
                 int idxColor = arg0 == mFColorSpinner ? arg2 : mFColorSpinner.getSelectedItemPosition();
+                int idxScale = arg0 == mScaleSpinner ? arg2 : mScaleSpinner.getSelectedItemPosition();
                 int idxFout = arg0 == mFOutSpinner ? arg2 : mFOutSpinner.getSelectedItemPosition();
                 int idxFLineW = arg0 == mLineWSpinner ? arg2 : mLineWSpinner.getSelectedItemPosition();
                 int idxAZoom = arg0 == mAZoomSpinner ? arg2 : mAZoomSpinner.getSelectedItemPosition();
                 int cmd = framecmd[idxType];
 
-                float rati = 2.0f;//ratios[idxRatio]
+                float rati = cmd == 0x30 ? fScale[idxScale] : ratios[idxRatio];
+                int centerX = idxType == framecmd.length - 1 ? 75 : (idxType == framecmd.length - 3 ? 25 : 50);
+                int centerY = 50;
                 mVideoView.setEGLFilter(cmd, cmd == 0x10 ? fAZoom[idxAZoom] : (
-                        cmd == 0x100 ? idxType - 3: fOutAlpha[idxFout]),
-                        30, 30, rati, fcolors[idxColor],
+                        cmd == 0x100 ? idxType - 3: (cmd == 0x30 ? 3 : fOutAlpha[idxFout])),
+                        centerX, centerY, rati, fcolors[idxColor],
                         fLineW[idxFLineW], "");
             }
         }

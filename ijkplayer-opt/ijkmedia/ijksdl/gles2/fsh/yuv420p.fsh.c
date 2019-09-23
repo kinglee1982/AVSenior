@@ -24,6 +24,7 @@
 static const char g_shader[] = IJK_GLES_STRING(
     precision highp float;
     varying   highp vec2 vv2_Texcoord;
+	varying   highp vec4 gPosition;
     uniform         mat3 um3_ColorConversion;
     uniform   lowp  sampler2D us2_SamplerX;
     uniform   lowp  sampler2D us2_SamplerY;
@@ -31,6 +32,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 
 	uniform   ivec2 cunstom_cmd_type;
 	uniform   vec4 cunstom_Params;
+	uniform   vec4 cunstom_Params_plus;
 	uniform   vec4 cunstom_Colors;
     void main()
     {
@@ -44,16 +46,17 @@ static const char g_shader[] = IJK_GLES_STRING(
 		yuv.x = (texture2D(us2_SamplerX, vv2_Texcoord).r - (16.0 / 255.0));
         yuv.y = (texture2D(us2_SamplerY, vv2_Texcoord).r - 0.5);
         yuv.z = (texture2D(us2_SamplerZ, vv2_Texcoord).r - 0.5);
-		
 		if (ftype == 0x2222){
 			float centerX = cunstom_Params.x;
 			float centerY = cunstom_Params.y;
 			float ratio = cunstom_Params.z;
+			float offsetX = cunstom_Params_plus.y;
+			float offsetY = cunstom_Params_plus.z;
 			vec2  center = vec2(centerX, centerY);
-			float dis = distance(vec2(vv2_Texcoord.x, vv2_Texcoord.y), center);
-			if (dis < 0.15 ){
-				float x = vv2_Texcoord.x / ratio;
-				float y = vv2_Texcoord.y / ratio;
+			float dis = distance(vec2(gPosition.x, gPosition.y/cunstom_Params_plus.x), center);
+			if (dis < cunstom_Params.w){
+				float x = vv2_Texcoord.x / ratio + offsetX;
+				float y = vv2_Texcoord.y / ratio + offsetY;
 				yuv.x = (texture2D(us2_SamplerX, vec2(x, y)).r - (16.0 / 255.0));
         		yuv.y = (texture2D(us2_SamplerY, vec2(x, y)).r - 0.5);
         		yuv.z = (texture2D(us2_SamplerZ, vec2(x, y)).r - 0.5);
