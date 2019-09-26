@@ -12,7 +12,6 @@
         <item>紫色</item>
         <item>伪彩度</item>
         <item>辅助对焦</item>
-        <item>斑马纹</item>
     </string-array>
 
     <string-array name="frametype">
@@ -26,6 +25,9 @@
         <item>放大镜左</item>
         <item>放大镜中</item>
         <item>放大镜右</item>
+        <item>亮度表</item>
+        <item>波形图</item>
+        <item>斑马纹</item>
     </string-array>
 
     <string-array name="frameratio">

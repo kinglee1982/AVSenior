@@ -47,6 +47,8 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 
 #define GLES_MARKUP_RATIO_TYPE 0x1111
 #define GLES_MARKUP_PARTSCALE_TYPE 0x2222
+#define GLES_IN_ALPHA_TYPE 0x3333
+
 #define GLES_FLOAT_BYTE_SIZE 4
 #define GLES_VERTEX_COORD_NUM 3
 #define GLES_RECT_POINTS_COORD_NUM (GLES_VERTEX_COORD_NUM * 5)
@@ -57,8 +59,7 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_FS_TYPE_PSEUDO      0x3  //type:maybe need type
 #define GLES_FS_TYPE_AUX_FOCUS   0x4  //color:stroke color
 #define GLES_FS_TYPE_3DLUT       0x5  //filepath
-#define GLES_FS_TYPE_ZEBRA_S     0x6  //ratio : brightness ratio
-#define GLES_FS_TYPE_NUMBER     (GLES_FS_TYPE_ZEBRA_S + 1)
+#define GLES_FS_TYPE_NUMBER     (GLES_FS_TYPE_3DLUT + 1)
 //end Fragment Shader Type
 
 //for line markup Type 0x00--0xf0
@@ -66,7 +67,10 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_MARKUP_TYPE_WIREFRAME   0x10 //centerX,centerY,ratio,color,lineW,type(wireFrameRatio)
 #define GLES_MARKUP_TYPE_RATIO       0x20 //ratio,color,lineW ,type(for alphaOutside)
 #define GLES_MARKUP_TYPE_PARTSCALE    0x30 //centerX,centerY,type(partZoomRatio),ratio(Scaling ratio)
-#define GLES_MARKUP_TYPE_NUMBER      ((GLES_MARKUP_TYPE_PARTSCALE >> 4) + 1)
+#define GLES_MARKUP_TYPE_B_TABLE     0x40 //brightness table
+#define GLES_MARKUP_TYPE_SCOPEBOX    0x50 //
+#define GLES_MARKUP_TYPE_ZEBRA_S     0x60  //ratio : brightness ratio
+#define GLES_MARKUP_TYPE_NUMBER      ((GLES_MARKUP_TYPE_ZEBRA_S >> 4) + 1)
 //end line markup Type
 
 //for part markup Type 0x000--0xf00
@@ -75,13 +79,6 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_PARTMARKUP_TYPE_NUMBER       ((GLES_PARTMARKUP_TYPE_CENTERFLAG >> 8) + 1)
 //end part markup Type
 
-//for analysis Type 0x0000--0xf000
-#define GLES_ANALYSIS_TYPE_NORMAL       0xF000
-#define GLES_ANALYSIS_TYPE_B_TABLE     0x1000 //brightness table
-#define GLES_ANALYSIS_TYPE_SCOPEBOX    0x2000 //
-#define GLES_ANALYSIS_TYPE_NUMBER       ((GLES_ANALYSIS_TYPE_SCOPEBOX >> 12) + 1)
-//end analysis Type
-
 //for center flag Type 0-3
 #define GLES_CENTER_FLAG_BIGPLUS        0
 #define GLES_CENTER_FLAG_SMALLPLUS      1
@@ -89,6 +86,8 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_CENTER_FLAG_SMALLCIRCLE    3
 //end center flag Type
 
+#define LUMA_VERTEX_NUM (255 * 2 * 3)
+#define OSC_VIDEO_MAX_WIDTH 3840
 
 typedef struct GLES2_Draw_Type_t{
 	unsigned short drawType;
@@ -107,6 +106,9 @@ typedef struct GLES2_Draw_Type_t{
 	int argb;//color
 	char filePath[128];//3d lut filepath
 	GLfloat rectVertexs[GLES_RECT_POINTS_COORD_NUM];
+	GLfloat lumaVertexs[LUMA_VERTEX_NUM];
+	GLfloat oscVertexs[OSC_VIDEO_MAX_WIDTH * 3];
+	int oscYNumbers[OSC_VIDEO_MAX_WIDTH];
 }GLES2_Draw_Type;
 
 void IJK_GLES2_printString(const char *name, GLenum s);

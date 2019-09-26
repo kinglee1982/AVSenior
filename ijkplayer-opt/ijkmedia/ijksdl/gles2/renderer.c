@@ -416,6 +416,22 @@ static void IJK_GLES2_Display_use(IJK_GLES2_Renderer *renderer)
     return;
 }
 
+static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float centerX,float centerY)
+{
+	static GLfloat vertexs[12] = {0.0f};
+	float y = renderer->frame_width * 0.5 / 2.0 / (renderer->frame_height * 1.0);
+	if (centerX - 0.5 < -1.0)centerX = -0.5;
+	if (centerX + 0.5 > 1.0)centerX = 0.5;
+	if (centerY + y > 1.0)centerY = 1.0 - y;
+	if (centerY - y < -1.0)centerY = -1.0 + y;
+
+	vertexs[0] = centerX - 0.5;vertexs[1] = centerY + y;
+	vertexs[3] = centerX + 0.5;vertexs[4] = centerY + y;
+	vertexs[6] = centerX + 0.5;vertexs[7] = centerY - y;
+	vertexs[9] = centerX - 0.5;vertexs[10] = centerY - y;
+	return vertexs;
+}
+
 static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 {
 	int type = (renderer->cur_draw_t.drawType & 0xF) == GLES_FS_TYPE_PSEUDO ? 
@@ -442,6 +458,19 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		plusarg2 = ((arg1 + 1.0) / 2.0) / (arg3 == 3.0f ? 1.5 : (arg3 == 4.0f ? 1.325 : 2.0));
 		plusarg3 = ((-arg2 + 1.0) / 2.0) / (arg3 == 3.0f ? 1.5 : (arg3 == 4.0f ? 1.325 : 2.0));
 		type = GLES_MARKUP_PARTSCALE_TYPE;
+	}else if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_B_TABLE || 
+		(renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_SCOPEBOX){
+		float centerX = (renderer->cur_draw_t.centerX / 100.0 - 0.5) * 2.0;
+		float centerY = (0.5 - renderer->cur_draw_t.centerY / 100.0) * 2.0;
+		GLfloat *idex = IJK_GLES2_Draw_RectVertexs(renderer,centerX,centerY);
+		arg1 = (idex[0] + 1.0) / 2.0;
+		arg2 = ( 1.0 + idex[3]) / 2.0;
+		arg3 = (1.0 - idex[1]) / 2.0;
+		arg4 = (1.0 - idex[7]) / 2.0;
+		type = GLES_IN_ALPHA_TYPE;
+	}
+	if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_AUX_FOCUS){
+		plusarg4 = 10.0f;
 	}
 	glUniform2i(renderer->cunstom_cmd_type,renderer->cur_draw_t.drawType & 0xF,type);
 	glUniform4f(renderer->cunstom_Params,arg1,arg2,arg3,arg4);
@@ -550,7 +579,7 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
     return GL_TRUE;
 }
 
-static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float whratio,float centerX,float centerY)
+static GLfloat *IJK_GLES2_Draw_FrameVertexs(IJK_GLES2_Renderer *renderer,float whratio,float centerX,float centerY)
 {
 	int lineMarkupType = renderer->cur_draw_t.drawType & 0x00F0;
 	static GLfloat vertexs[GLES_RECT_POINTS_COORD_NUM] = {0.0f};
@@ -606,18 +635,71 @@ static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float wh
 	return vertexs;
 }
 
+static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay,int type)
+{
+	float centerX = (renderer->cur_draw_t.centerX / 100.0 - 0.5) * 2.0;
+	float centerY = (0.5 - renderer->cur_draw_t.centerY / 100.0) * 2.0;
+	GLfloat *idex = IJK_GLES2_Draw_RectVertexs(renderer,centerX,centerY);
+	GLubyte *ybytes = overlay->pixels[0];
+	int ySize = renderer->frame_width * renderer->frame_height;
+	float yoffset = idex[1] - idex[7];
+	int max = 0;
+	if (type == GLES_MARKUP_TYPE_B_TABLE){
+		int yNumbers[255] = {0};
+		for (int i=0;i<ySize;i++){
+			yNumbers[ybytes[i]]++;
+		}
+		for (int i=0;i<255;i++){
+			if (yNumbers[i] > max)max = yNumbers[i];
+		}
+		float yOffs[255] = {0.0};
+		for (int i=0;i<255;i++){
+			yOffs[i] = yNumbers[i] * yoffset / max;
+		}
+
+		memset(&renderer->cur_draw_t.lumaVertexs[0],0x00,sizeof(renderer->cur_draw_t.lumaVertexs));
+		for (int i=0;i<255 * 2;i += 2){
+			renderer->cur_draw_t.lumaVertexs[i * 3] = idex[0] + (i / 2) / 255.0;
+			renderer->cur_draw_t.lumaVertexs[i * 3 + 1] = idex[7];
+			renderer->cur_draw_t.lumaVertexs[i * 3 + 2] = 0.0;
+			
+			renderer->cur_draw_t.lumaVertexs[(i + 1) * 3] = idex[0] + (i / 2) / 255.0;
+			renderer->cur_draw_t.lumaVertexs[(i + 1) * 3 + 1] = idex[7] + yOffs[i/2];
+			renderer->cur_draw_t.lumaVertexs[(i + 1) * 3 + 2] = 0.0;
+		}
+		return renderer->cur_draw_t.lumaVertexs;
+	}else{
+		memset(&renderer->cur_draw_t.oscVertexs[0],0x00,sizeof(renderer->cur_draw_t.oscVertexs));
+		memset(&renderer->cur_draw_t.oscYNumbers[0],0x00,sizeof(renderer->cur_draw_t.oscYNumbers));
+		for (int w=0;w<renderer->frame_width;w++){
+			for (int h=0;h<renderer->frame_height;h++){
+				renderer->cur_draw_t.oscYNumbers[w] += ybytes[w + h * renderer->frame_width];
+			}
+			renderer->cur_draw_t.oscYNumbers[w] /= renderer->frame_height;
+		}
+		for (int i=0;i<renderer->frame_width;i++){
+			float yoffV = renderer->cur_draw_t.oscYNumbers[i] * yoffset / 255.0;
+			renderer->cur_draw_t.oscVertexs[i * 3] = idex[0] + i * 1.0 / renderer->frame_width;
+			renderer->cur_draw_t.oscVertexs[i * 3 + 1] = idex[7] + yoffV;
+			renderer->cur_draw_t.oscVertexs[i * 3 + 2] = 0.0;
+		}
+		
+		return renderer->cur_draw_t.oscVertexs;
+	}
+	
+}
+
 static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay)
 {
 	int lineMarkupType = renderer->cur_draw_t.drawType & 0x00F0;
 	int partMarkupType = renderer->cur_draw_t.drawType & 0x0F00;
-	int analysisType = renderer->cur_draw_t.drawType & 0xF000;
 
 	if (lineMarkupType == GLES_MARKUP_TYPE_WIREFRAME ||
 		lineMarkupType == GLES_MARKUP_TYPE_RATIO ||
-		lineMarkupType == GLES_MARKUP_TYPE_PARTSCALE ||
-		partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG ||
-		analysisType == GLES_ANALYSIS_TYPE_B_TABLE ||
-		analysisType == GLES_ANALYSIS_TYPE_SCOPEBOX)
+		lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ||
+		lineMarkupType == GLES_MARKUP_TYPE_SCOPEBOX ||
+		lineMarkupType == GLES_MARKUP_TYPE_ZEBRA_S ||
+		partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG)
 	{
 		IJK_GLES2_Display_use(renderer);
 		if (lineMarkupType == GLES_MARKUP_TYPE_WIREFRAME || 
@@ -627,7 +709,7 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 			float whratio = renderer->cur_draw_t.whRatio;
 			float lineW = renderer->cur_draw_t.lineWidth > 0 ? renderer->cur_draw_t.lineWidth * 1.0f : 1.0f;
 			glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, 
-				IJK_GLES2_Draw_RectVertexs(renderer,whratio,(centerX - 0.5) * 2,( 0.5 - centerY) * 2));
+				IJK_GLES2_Draw_FrameVertexs(renderer,whratio,(centerX - 0.5) * 2,( 0.5 - centerY) * 2));
 			glEnableVertexAttribArray(renderer->display_position);
 			glLineWidth(lineW);
 			int argb = renderer->cur_draw_t.argbFrame;
@@ -635,13 +717,20 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 				((argb >> 8) & 0xFF) / 255.0,(argb & 0xFF) / 255.0,((argb >> 24) & 0xFF) / 255.0);
 			glDrawArrays(GL_LINE_STRIP, 0, 5); 
 			glDisableVertexAttribArray(renderer->display_position);
-		}else if (lineMarkupType == GLES_MARKUP_TYPE_PARTSCALE){
-			
-		}
-		if (analysisType == GLES_ANALYSIS_TYPE_B_TABLE){
-			
-		}else if (analysisType == GLES_ANALYSIS_TYPE_B_TABLE){
-		
+		}else if (lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ||
+					lineMarkupType == GLES_MARKUP_TYPE_SCOPEBOX){
+			GLfloat *vertexs = IJK_GLES2_Luma_Vertexs(renderer,overlay,lineMarkupType);
+			glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertexs);
+			glEnableVertexAttribArray(renderer->display_position);
+			glUniform4f(renderer->display_color,1.0,1.0,1.0,1.0);
+			if (lineMarkupType == GLES_MARKUP_TYPE_B_TABLE){
+				glLineWidth(2.0);
+				glDrawArrays(GL_LINES, 0, 255 * 2); 
+			}else{
+				glUniform4f(renderer->display_params,1.0,0.0f,0.0f,0.0f);
+				glDrawArrays(GL_POINTS, 0, renderer->frame_width); 
+			}
+			glDisableVertexAttribArray(renderer->display_position);
 		}
 		if (partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG){
 			float orginWHRatio = renderer->frame_width * 1.0f / renderer->frame_height;
@@ -705,7 +794,6 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 	int fsType = cmd & 0x000F;
 	int lineMarkupType = cmd & 0x00F0;
 	int partMarkupType = cmd & 0x0F00;
-	int analysisType = cmd & 0xF000;
     if ((fsType == 0xF) || (fsType > 0 && fsType < GLES_FS_TYPE_NUMBER)){
 		switch(fsType){
 			case GLES_FS_TYPE_NORMAL:
@@ -723,7 +811,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 			case GLES_FS_TYPE_3DLUT:
 				sprintf(renderer->cur_draw_t.filePath,"%s",filePath);
 				break;
-			case GLES_FS_TYPE_ZEBRA_S:
+			case GLES_MARKUP_TYPE_ZEBRA_S:
 				renderer->cur_draw_t.brightLimit = ratio;
 				break;
 		}
@@ -755,6 +843,12 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 				renderer->cur_draw_t.partZoomRatio = type / 10.0f;
 				renderer->cur_draw_t.partZoomScale = ratio;
 				break;
+			case GLES_MARKUP_TYPE_B_TABLE:
+			case GLES_MARKUP_TYPE_SCOPEBOX:
+				renderer->cur_draw_t.centerX = centerX;
+				renderer->cur_draw_t.centerY = centerY;
+				break;
+				
 		}
 		renderer->cur_draw_t.drawType &= 0xFF0F;
 		renderer->cur_draw_t.drawType |= lineMarkupType;
@@ -772,10 +866,6 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 		}
 		renderer->cur_draw_t.drawType &= 0xF0FF;
 		renderer->cur_draw_t.drawType |= partMarkupType;
-    }
-	if ((analysisType == 0xF000) || ((analysisType >> 12) > 0 && (analysisType >> 12) < GLES_ANALYSIS_TYPE_NUMBER)){
-		renderer->cur_draw_t.drawType &= 0x0FFF;
-		renderer->cur_draw_t.drawType |= analysisType;
     }
 	renderer->need_shader_change = true; //need opengl thread to execute
 

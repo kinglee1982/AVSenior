@@ -90,7 +90,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
     private static int fOutAlpha[] = {0xFF,0xBD,0x7F,0x3F,0x00};
     private static int fLineW[] = {2,4,6,8,10};
     private static int fAZoom[] = {0x0A,0x1E,0x3C,0x5A,0x64};
-    private static int framecmd[] = {0xF0,0x10,0x20,0x100,0x100,0x100,0x100,0x30,0x30,0x30};
+    private static int framecmd[] = {0xF0,0x10,0x20,0x100,0x100,0x100,0x100,0x30,0x30,0x30,0x40,0x50,0x60};
     private static float fScale[] = {2.0f,3.0f,4.0f};
     public static Intent newIntent(Context context, String videoPath, String videoTitle) {
         Intent intent = new Intent(context, VideoActivity.class);
@@ -248,7 +248,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
                 int cmd = framecmd[idxType];
 
                 float rati = cmd == 0x30 ? fScale[idxScale] : ratios[idxRatio];
-                int centerX = idxType == framecmd.length - 1 ? 75 : (idxType == framecmd.length - 3 ? 25 : 50);
+                int centerX = idxType == framecmd.length - 4 ? 75 : (idxType == framecmd.length - 6 ? 25 : 50);
                 int centerY = 50;
                 mVideoView.setEGLFilter(cmd, cmd == 0x10 ? fAZoom[idxAZoom] : (
                         cmd == 0x100 ? idxType - 3: (cmd == 0x30 ? 3 : fOutAlpha[idxFout])),
