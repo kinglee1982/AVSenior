@@ -233,10 +233,11 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
                     color = colors[arg2 - 2];
                 }
                 if (arg2 == 9) cmd = 0x3;
-                if (arg2 == 10) cmd = 0x4;
+                if (arg2 == 10) cmd = 0x6;
                 if (arg2 == 11) cmd = 0x6;
+                if (arg2 == 12) cmd = 0x4;
                 if (arg2 == 0) cmd = 0xF;
-                mVideoView.setEGLFilter(cmd, 0x0, 0, 0, 0.0f, color, 0, "");
+                mVideoView.setEGLFilter(cmd, 0x0, 0, 0, arg2 == 10 ? 50.0f : 80.0f, color, 0, "");
             }else if (arg0 != mFilterSpinner){
                 int idxType = arg0 == mFTypeSpinner ? arg2 : mFTypeSpinner.getSelectedItemPosition();
                 int idxRatio = arg0 == mFRatioSpinner ? arg2 : mFRatioSpinner.getSelectedItemPosition();

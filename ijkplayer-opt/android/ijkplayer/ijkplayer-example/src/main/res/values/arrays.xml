@@ -11,6 +11,8 @@
         <item>靛色</item>
         <item>紫色</item>
         <item>伪彩度</item>
+        <item>斑马纹50%</item>
+        <item>斑马纹80%</item>
         <item>辅助对焦</item>
     </string-array>
 
@@ -27,7 +29,6 @@
         <item>放大镜右</item>
         <item>亮度表</item>
         <item>波形图</item>
-        <item>斑马纹</item>
     </string-array>
 
     <string-array name="frameratio">

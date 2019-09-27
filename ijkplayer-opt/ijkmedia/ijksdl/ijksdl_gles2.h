@@ -59,18 +59,18 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_FS_TYPE_PSEUDO      0x3  //type:maybe need type
 #define GLES_FS_TYPE_AUX_FOCUS   0x4  //color:stroke color
 #define GLES_FS_TYPE_3DLUT       0x5  //filepath
-#define GLES_FS_TYPE_NUMBER     (GLES_FS_TYPE_3DLUT + 1)
+#define GLES_FS_TYPE_ZEBRA_S     0x6  //ratio : brightness ratio
+#define GLES_FS_TYPE_NUMBER     (GLES_FS_TYPE_ZEBRA_S + 1)
 //end Fragment Shader Type
 
 //for line markup Type 0x00--0xf0
 #define GLES_MARKUP_TYPE_NORMAL      0xF0
 #define GLES_MARKUP_TYPE_WIREFRAME   0x10 //centerX,centerY,ratio,color,lineW,type(wireFrameRatio)
 #define GLES_MARKUP_TYPE_RATIO       0x20 //ratio,color,lineW ,type(for alphaOutside)
-#define GLES_MARKUP_TYPE_PARTSCALE    0x30 //centerX,centerY,type(partZoomRatio),ratio(Scaling ratio)
+#define GLES_MARKUP_TYPE_PARTSCALE   0x30 //centerX,centerY,type(partZoomRatio),ratio(Scaling ratio)
 #define GLES_MARKUP_TYPE_B_TABLE     0x40 //brightness table
 #define GLES_MARKUP_TYPE_SCOPEBOX    0x50 //
-#define GLES_MARKUP_TYPE_ZEBRA_S     0x60  //ratio : brightness ratio
-#define GLES_MARKUP_TYPE_NUMBER      ((GLES_MARKUP_TYPE_ZEBRA_S >> 4) + 1)
+#define GLES_MARKUP_TYPE_NUMBER      ((GLES_MARKUP_TYPE_SCOPEBOX >> 4) + 1)
 //end line markup Type
 
 //for part markup Type 0x000--0xf00
@@ -97,7 +97,7 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char cFlagType; //center flag draw type + or .0-3
 	unsigned char pseudoType; //pseudo type 0-2
 	unsigned char alphaOutside; //0x00-0xff
-	unsigned char brightLimit; //0x00-0xff  for zebra-stripe
+	unsigned char brightLimit; //0-100  for zebra-stripe
 	float wireFrameRatio;//frame scale
 	float partZoomScale;//part scale
 	float partZoomRatio; //part ratio

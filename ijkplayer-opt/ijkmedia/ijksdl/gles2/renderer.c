@@ -469,8 +469,8 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		arg4 = (1.0 - idex[7]) / 2.0;
 		type = GLES_IN_ALPHA_TYPE;
 	}
-	if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_AUX_FOCUS){
-		plusarg4 = 10.0f;
+	if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_ZEBRA_S){
+		plusarg4 = renderer->cur_draw_t.brightLimit / 100.0f;
 	}
 	glUniform2i(renderer->cunstom_cmd_type,renderer->cur_draw_t.drawType & 0xF,type);
 	glUniform4f(renderer->cunstom_Params,arg1,arg2,arg3,arg4);
@@ -698,7 +698,6 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 		lineMarkupType == GLES_MARKUP_TYPE_RATIO ||
 		lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ||
 		lineMarkupType == GLES_MARKUP_TYPE_SCOPEBOX ||
-		lineMarkupType == GLES_MARKUP_TYPE_ZEBRA_S ||
 		partMarkupType == GLES_PARTMARKUP_TYPE_CENTERFLAG)
 	{
 		IJK_GLES2_Display_use(renderer);
@@ -811,8 +810,8 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 			case GLES_FS_TYPE_3DLUT:
 				sprintf(renderer->cur_draw_t.filePath,"%s",filePath);
 				break;
-			case GLES_MARKUP_TYPE_ZEBRA_S:
-				renderer->cur_draw_t.brightLimit = ratio;
+			case GLES_FS_TYPE_ZEBRA_S:
+				renderer->cur_draw_t.brightLimit = (unsigned char)ratio;
 				break;
 		}
 		

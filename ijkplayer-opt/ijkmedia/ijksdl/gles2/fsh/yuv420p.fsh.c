@@ -131,6 +131,19 @@ static const char g_shader[] = IJK_GLES_STRING(
 		}
 		return yuv;
 	}
+
+	vec3 zebra(vec3 inColor,float y,float division)
+	{
+		if (y >= division){
+			float tx = vv2_Texcoord.x;
+			float ty = vv2_Texcoord.y;
+			float v = tx + ty;
+			if ((v - 0.025 * floor(v / 0.025)) <= 0.0025){
+				return vec3(0.0,0.0,0.0);
+			}
+		}
+		return inColor;
+	}
 	
     void main()
     {
@@ -165,7 +178,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 		}else if (fcmd == 0x5){
         	
 		}else if (fcmd == 0x6){
-        	
+        	color = zebra(color,yuv.x,cunstom_Params_plus.w);
 		}
 		gl_FragColor = vec4(color, 1);
 		if (ftype == 0x1111){
