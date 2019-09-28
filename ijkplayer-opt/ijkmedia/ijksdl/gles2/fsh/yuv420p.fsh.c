@@ -138,8 +138,8 @@ static const char g_shader[] = IJK_GLES_STRING(
 			float tx = vv2_Texcoord.x;
 			float ty = vv2_Texcoord.y;
 			float v = tx + ty;
-			if ((v - 0.025 * floor(v / 0.025)) <= 0.0025){
-				return vec3(0.0,0.0,0.0);
+			if ((v - 0.020 * floor(v / 0.020)) <= 0.01){
+				return vec3(0.3,0.3,0.3);
 			}
 		}
 		return inColor;

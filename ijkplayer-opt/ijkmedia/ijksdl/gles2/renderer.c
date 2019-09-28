@@ -635,7 +635,7 @@ static GLfloat *IJK_GLES2_Draw_FrameVertexs(IJK_GLES2_Renderer *renderer,float w
 	return vertexs;
 }
 
-static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay,int type)
+static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay,int type,int r)
 {
 	float centerX = (renderer->cur_draw_t.centerX / 100.0 - 0.5) * 2.0;
 	float centerY = (0.5 - renderer->cur_draw_t.centerY / 100.0) * 2.0;
@@ -672,10 +672,14 @@ static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOve
 		memset(&renderer->cur_draw_t.oscVertexs[0],0x00,sizeof(renderer->cur_draw_t.oscVertexs));
 		memset(&renderer->cur_draw_t.oscYNumbers[0],0x00,sizeof(renderer->cur_draw_t.oscYNumbers));
 		for (int w=0;w<renderer->frame_width;w++){
-			for (int h=0;h<renderer->frame_height;h++){
-				renderer->cur_draw_t.oscYNumbers[w] += ybytes[w + h * renderer->frame_width];
-			}
-			renderer->cur_draw_t.oscYNumbers[w] /= renderer->frame_height;
+			#if 0
+				for (int h=0;h<renderer->frame_height;h++){
+					renderer->cur_draw_t.oscYNumbers[w] += ybytes[w + h * renderer->frame_width];
+				}
+				renderer->cur_draw_t.oscYNumbers[w] /= renderer->frame_height;
+			#else
+				renderer->cur_draw_t.oscYNumbers[w] += ybytes[w + r * renderer->frame_width];
+			#endif
 		}
 		for (int i=0;i<renderer->frame_width;i++){
 			float yoffV = renderer->cur_draw_t.oscYNumbers[i] * yoffset / 255.0;
@@ -718,16 +722,19 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 			glDisableVertexAttribArray(renderer->display_position);
 		}else if (lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ||
 					lineMarkupType == GLES_MARKUP_TYPE_SCOPEBOX){
-			GLfloat *vertexs = IJK_GLES2_Luma_Vertexs(renderer,overlay,lineMarkupType);
-			glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertexs);
-			glEnableVertexAttribArray(renderer->display_position);
-			glUniform4f(renderer->display_color,1.0,1.0,1.0,1.0);
-			if (lineMarkupType == GLES_MARKUP_TYPE_B_TABLE){
-				glLineWidth(2.0);
-				glDrawArrays(GL_LINES, 0, 255 * 2); 
-			}else{
-				glUniform4f(renderer->display_params,1.0,0.0f,0.0f,0.0f);
-				glDrawArrays(GL_POINTS, 0, renderer->frame_width); 
+			int cycleNumber = lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ? 1 : renderer->frame_height;
+			for (int r = 0;r < cycleNumber;r ++){
+				GLfloat *vertexs = IJK_GLES2_Luma_Vertexs(renderer,overlay,lineMarkupType,r);
+				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertexs);
+				glEnableVertexAttribArray(renderer->display_position);
+				glUniform4f(renderer->display_color,1.0,1.0,1.0,1.0);
+				if (lineMarkupType == GLES_MARKUP_TYPE_B_TABLE){
+					glLineWidth(2.0);
+					glDrawArrays(GL_LINES, 0, 255 * 2); 
+				}else{
+					glUniform4f(renderer->display_params,1.0,0.0f,0.0f,0.0f);
+					glDrawArrays(GL_POINTS, 0, renderer->frame_width); 
+				}
 			}
 			glDisableVertexAttribArray(renderer->display_position);
 		}
