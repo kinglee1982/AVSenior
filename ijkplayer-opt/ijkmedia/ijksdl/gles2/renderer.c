@@ -438,6 +438,7 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		renderer->cur_draw_t.pseudoType : renderer->cur_draw_t.brightLimit;
 	float arg1 = 0.0f,arg2 = 0.0f,arg3 = 0.0f,arg4 = 0.0f;
 	float plusarg1 = 0.0f,plusarg2 = 0.0f,plusarg3 = 0.0f,plusarg4 = 0.0f;
+	float wfactor = 0.0f,hfactor = 0.0f;
 	if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO){
 		int fw = renderer->frame_width;
 		int fh = renderer->frame_height;
@@ -469,12 +470,17 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		arg4 = (1.0 - idex[7]) / 2.0;
 		type = GLES_IN_ALPHA_TYPE;
 	}
-	if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_ZEBRA_S){
+	if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_ZEBRA_S ||
+		(renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_AUX_FOCUS){
 		plusarg4 = renderer->cur_draw_t.brightLimit / 100.0f;
+		float auxflw = renderer->cur_draw_t.auxfocuslinewidth * 1.0f;
+		wfactor = auxflw / renderer->frame_width;
+		hfactor = auxflw / renderer->frame_height;
 	}
 	glUniform2i(renderer->cunstom_cmd_type,renderer->cur_draw_t.drawType & 0xF,type);
 	glUniform4f(renderer->cunstom_Params,arg1,arg2,arg3,arg4);
 	glUniform4f(renderer->cunstom_Params_plus,plusarg1,plusarg2,plusarg3,plusarg4);
+	glUniform2f(renderer->cunstom_factor,wfactor,hfactor);
 	
 	int argb = renderer->cur_draw_t.argb;
 	float alpha = (renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO ? 
@@ -789,6 +795,7 @@ void IJK_GLES2_Renderer_changeFShader(IJK_GLES2_Renderer *renderer, const char *
 		renderer->cunstom_cmd_type = glGetUniformLocation(renderer->program, "cunstom_cmd_type");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_cmd_type)");
 		renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
 		renderer->cunstom_Params_plus = glGetUniformLocation(renderer->program, "cunstom_Params_plus");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params_plus)");
+		renderer->cunstom_factor = glGetUniformLocation(renderer->program, "cunstom_factor");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_factor)");
 		renderer->cunstom_Colors = glGetUniformLocation(renderer->program, "cunstom_Colors");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Colors)");
 		IJK_GLES2_Renderer_use(renderer);
     }
@@ -813,6 +820,8 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 				break;
 			case GLES_FS_TYPE_AUX_FOCUS:
 				renderer->cur_draw_t.argb = color;
+				renderer->cur_draw_t.brightLimit = (unsigned char)ratio;
+				renderer->cur_draw_t.auxfocuslinewidth = lineW;
 				break;
 			case GLES_FS_TYPE_3DLUT:
 				sprintf(renderer->cur_draw_t.filePath,"%s",filePath);

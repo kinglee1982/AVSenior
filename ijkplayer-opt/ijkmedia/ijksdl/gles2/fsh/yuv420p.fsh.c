@@ -34,6 +34,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 	uniform   vec4 cunstom_Params;
 	uniform   vec4 cunstom_Params_plus;
 	uniform   vec4 cunstom_Colors;
+	uniform   vec2 cunstom_factor;
 
 	vec3 getFalseColor(float y)
 	{
@@ -144,7 +145,53 @@ static const char g_shader[] = IJK_GLES_STRING(
 		}
 		return inColor;
 	}
-	
+
+	vec3 auxfocus(vec3 inColor,vec3 linecolor)
+	{  
+		vec2 v_directTexCoord[8];
+		float YValues[8];
+
+		float wfactor = cunstom_factor.x;
+		float hfactor = cunstom_factor.y;
+		float rfactor = cunstom_Params_plus.w;
+		mediump vec2 widthStep = vec2(wfactor, 0.0);
+    	mediump vec2 heightStep = vec2(0.0, hfactor);
+    	mediump vec2 widthHeightStep = vec2(wfactor, hfactor);
+    	mediump vec2 widthNegativeHeightStep = vec2(wfactor, -hfactor);
+		
+		v_directTexCoord[0] = vv2_Texcoord - widthStep;//left
+    	v_directTexCoord[1] = vv2_Texcoord + widthStep;//right
+    	v_directTexCoord[2] = vv2_Texcoord + heightStep;//top
+    	v_directTexCoord[3] = vv2_Texcoord - heightStep;//bottom
+    	v_directTexCoord[4] = vv2_Texcoord - widthHeightStep;//left top
+    	v_directTexCoord[5] = vv2_Texcoord + widthNegativeHeightStep ;//right top
+    	v_directTexCoord[6] = vv2_Texcoord - widthNegativeHeightStep;//left bottom
+    	v_directTexCoord[7] = vv2_Texcoord + widthHeightStep;//right bottom
+
+		YValues[0] = (texture2D(us2_SamplerX, v_directTexCoord[0]).r - (16.0 / 255.0));//left
+     	YValues[1] = (texture2D(us2_SamplerX, v_directTexCoord[1]).r - (16.0 / 255.0));//right
+     	YValues[2] = (texture2D(us2_SamplerX, v_directTexCoord[2]).r - (16.0 / 255.0));//top
+     	YValues[3] = (texture2D(us2_SamplerX, v_directTexCoord[3]).r - (16.0 / 255.0));//bottom
+     	YValues[4] = (texture2D(us2_SamplerX, v_directTexCoord[4]).r - (16.0 / 255.0));//left top
+     	YValues[5] = (texture2D(us2_SamplerX, v_directTexCoord[5]).r - (16.0 / 255.0));//right top
+     	YValues[6] = (texture2D(us2_SamplerX, v_directTexCoord[6]).r - (16.0 / 255.0));//left bottom
+     	YValues[7] = (texture2D(us2_SamplerX, v_directTexCoord[7]).r - (16.0 / 255.0));//right bottom
+
+		float hColor = YValues[0] * -2.0 + YValues[1] * 2.0 +
+                    YValues[2] * 0.0 + YValues[3] * 0.0 +
+                    YValues[4] * -1.0 + YValues[5] * 1.0 +
+                    YValues[6] * -1.0 + YValues[7] * 1.0;
+
+     	float vColor = YValues[0] * 0.0 + YValues[1] * 0.0 +
+                    YValues[2] * -2.0 + YValues[3] * 2.0 +
+                    YValues[4] * -1.0 + YValues[5] * -1.0 +
+                    YValues[6] * 1.0 + YValues[7] * 1.0;
+
+     	float finalColor = length(vec2(hColor, vColor));
+		if (finalColor > rfactor)return linecolor;
+		return inColor;
+	}
+
     void main()
     {
         mediump vec3 yuv;
@@ -174,7 +221,8 @@ static const char g_shader[] = IJK_GLES_STRING(
 		}else if (fcmd == 0x3){
 			color = getFalseColor(yuv.x);
 		}else if (fcmd == 0x4){
-			
+			vec3 crgb = vec3(cunstom_Colors.r,cunstom_Colors.g,cunstom_Colors.b);
+			color = auxfocus(color,crgb);
 		}else if (fcmd == 0x5){
         	
 		}else if (fcmd == 0x6){

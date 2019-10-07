@@ -57,7 +57,7 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define GLES_FS_TYPE_GRAY        0x1
 #define GLES_FS_TYPE_SINGLE_C    0x2  //color
 #define GLES_FS_TYPE_PSEUDO      0x3  //type:maybe need type
-#define GLES_FS_TYPE_AUX_FOCUS   0x4  //color:stroke color
+#define GLES_FS_TYPE_AUX_FOCUS   0x4  //color:stroke color, ratio:sensitivity
 #define GLES_FS_TYPE_3DLUT       0x5  //filepath
 #define GLES_FS_TYPE_ZEBRA_S     0x6  //ratio : brightness ratio
 #define GLES_FS_TYPE_NUMBER     (GLES_FS_TYPE_ZEBRA_S + 1)
@@ -97,7 +97,8 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char cFlagType; //center flag draw type + or .0-3
 	unsigned char pseudoType; //pseudo type 0-2
 	unsigned char alphaOutside; //0x00-0xff
-	unsigned char brightLimit; //0-100  for zebra-stripe
+	unsigned char brightLimit; //0-100  for zebra-stripe and aux focus
+	unsigned char auxfocuslinewidth; //pixel
 	float wireFrameRatio;//frame scale
 	float partZoomScale;//part scale
 	float partZoomRatio; //part ratio

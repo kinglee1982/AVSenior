@@ -52,6 +52,7 @@ typedef struct IJK_GLES2_Renderer
 	GLuint cunstom_Params;//params
 	GLuint cunstom_Params_plus;//params plus
 	GLuint cunstom_Colors;//colors
+	GLuint cunstom_factor;//width and height factor
     GLuint us2_sampler[IJK_GLES2_MAX_PLANE];
     GLuint um3_color_conversion;
 //for display texture

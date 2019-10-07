@@ -83,15 +83,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
     private boolean mBackPressed;
     private long mRecordStartTime;
     private PermissionHelper mPermissionHelper;
-    private static int colors[] = {0xFFFF0000,0xFFFFFF00,
-            0xFFFF6100,0xFF00FF00,0xFF0000FF,0xFFFF0000,0xFF082E54};
-    private static float ratios[] = {1.0f,4.0f/3.0f,13.0f/9,14.0f/9,16.0f/9,2.0f};
-    private static int fcolors[] = {0xFFFF0000,0xFF00FF00,0xFF0000FF,0xFFFFFFFF,0xFFFFFF00};
-    private static int fOutAlpha[] = {0xFF,0xBD,0x7F,0x3F,0x00};
-    private static int fLineW[] = {2,4,6,8,10};
-    private static int fAZoom[] = {0x0A,0x1E,0x3C,0x5A,0x64};
-    private static int framecmd[] = {0xF0,0x10,0x20,0x100,0x100,0x100,0x100,0x30,0x30,0x30,0x40,0x50,0x60};
-    private static float fScale[] = {2.0f,3.0f,4.0f};
+
     public static Intent newIntent(Context context, String videoPath, String videoTitle) {
         Intent intent = new Intent(context, VideoActivity.class);
         intent.putExtra("videoPath", videoPath);
@@ -220,42 +212,44 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
         }
         mVideoView.start();
     }
+    private static int colors[] = {0xFFFF0000,0xFFFFFF00,
+            0xFFFF6100,0xFF00FF00,0xFF0000FF,0xFFFF0000,0xFF082E54};
+    private static float ratios[] = {1.0f,4.0f/3.0f,13.0f/9,14.0f/9,16.0f/9,2.0f};
+    private static int fcolors[] = {0xFFFF0000,0xFF00FF00,0xFF0000FF,0xFFFFFFFF,0xFFFFFF00};
+    private static int fOutAlpha[] = {0xFF,0xBD,0x7F,0x3F,0x00};
+    private static int fLineW[] = {2,4,6,8,10};
+    private static int fAZoom[] = {0x0A,0x1E,0x3C,0x5A,0x64};
+    private static int fAuxFocusSensity[] = {0x0A,0x1E,0x32,0x4B,0x5A};
+    private static int framecmd[] = {0xF0,0x10,0x20,0x100,0x100,0x100,0x100,0x30,0x30,0x30,0x40,0x50,0x60};
+    private static float fScale[] = {2.0f,3.0f,4.0f};
+    private static int filtercmd[] = {0xF,0x1,0x2,0x2,0x2,0x2,0x2,0x2,0x2,0x3,0x6,0x6,0x4};
     private Spinner.OnItemSelectedListener spinnerListner =
             new Spinner.OnItemSelectedListener() {
         @Override
         public void onItemSelected(AdapterView<?> arg0, View arg1,
             int arg2, long arg3) {
-            if (arg0 == mFilterSpinner) {
-                int cmd = arg2;
-                int color = 0xffff0000;
-                if (arg2 >= 2 && arg2 <= 8) {
-                    cmd = 0x2;
-                    color = colors[arg2 - 2];
-                }
-                if (arg2 == 9) cmd = 0x3;
-                if (arg2 == 10) cmd = 0x6;
-                if (arg2 == 11) cmd = 0x6;
-                if (arg2 == 12) cmd = 0x4;
-                if (arg2 == 0) cmd = 0xF;
-                mVideoView.setEGLFilter(cmd, 0x0, 0, 0, arg2 == 10 ? 50.0f : 80.0f, color, 0, "");
-            }else if (arg0 != mFilterSpinner){
-                int idxType = arg0 == mFTypeSpinner ? arg2 : mFTypeSpinner.getSelectedItemPosition();
-                int idxRatio = arg0 == mFRatioSpinner ? arg2 : mFRatioSpinner.getSelectedItemPosition();
-                int idxColor = arg0 == mFColorSpinner ? arg2 : mFColorSpinner.getSelectedItemPosition();
-                int idxScale = arg0 == mScaleSpinner ? arg2 : mScaleSpinner.getSelectedItemPosition();
-                int idxFout = arg0 == mFOutSpinner ? arg2 : mFOutSpinner.getSelectedItemPosition();
-                int idxFLineW = arg0 == mLineWSpinner ? arg2 : mLineWSpinner.getSelectedItemPosition();
-                int idxAZoom = arg0 == mAZoomSpinner ? arg2 : mAZoomSpinner.getSelectedItemPosition();
-                int cmd = framecmd[idxType];
+            int fidxType = arg0 == mFilterSpinner ? arg2 : mFilterSpinner.getSelectedItemPosition();
+            int idxType = arg0 == mFTypeSpinner ? arg2 : mFTypeSpinner.getSelectedItemPosition();
+            int idxRatio = arg0 == mFRatioSpinner ? arg2 : mFRatioSpinner.getSelectedItemPosition();
+            int idxColor = arg0 == mFColorSpinner ? arg2 : mFColorSpinner.getSelectedItemPosition();
+            int idxScale = arg0 == mScaleSpinner ? arg2 : mScaleSpinner.getSelectedItemPosition();
+            int idxFout = arg0 == mFOutSpinner ? arg2 : mFOutSpinner.getSelectedItemPosition();
+            int idxFLineW = arg0 == mLineWSpinner ? arg2 : mLineWSpinner.getSelectedItemPosition();
+            int idxAZoom = arg0 == mAZoomSpinner ? arg2 : mAZoomSpinner.getSelectedItemPosition();
+            int cmd = framecmd[idxType];
 
-                float rati = cmd == 0x30 ? fScale[idxScale] : ratios[idxRatio];
-                int centerX = idxType == framecmd.length - 4 ? 75 : (idxType == framecmd.length - 6 ? 25 : 50);
-                int centerY = 50;
-                mVideoView.setEGLFilter(cmd, cmd == 0x10 ? fAZoom[idxAZoom] : (
-                        cmd == 0x100 ? idxType - 3: (cmd == 0x30 ? 3 : fOutAlpha[idxFout])),
-                        centerX, centerY, rati, fcolors[idxColor],
-                        fLineW[idxFLineW], "");
-            }
+            float rati = cmd == 0x30 ? fScale[idxScale] : ratios[idxRatio];
+            int centerX = idxType == framecmd.length - 4 ? 75 : (idxType == framecmd.length - 6 ? 25 : 50);
+            int centerY = 50;
+            mVideoView.setEGLFilter(cmd, cmd == 0x10 ? fAZoom[idxAZoom] : (
+                    cmd == 0x100 ? idxType - 3: (cmd == 0x30 ? 3 : fOutAlpha[idxFout])),
+                    centerX, centerY, rati, fcolors[idxColor],
+                    fLineW[idxFLineW], "");
+
+            cmd = filtercmd[fidxType];
+            rati = cmd == 0x6 ? (fidxType == 10 ? 50.0f : 80.0f) : fAuxFocusSensity[idxAZoom];
+            mVideoView.setEGLFilter(cmd, 0x0, 0, 0,
+                    rati, cmd  == 0x2 ? colors[fidxType - 2] : fcolors[idxColor], fLineW[idxFLineW], "");
         }
         @Override
         public void onNothingSelected(AdapterView<?> arg0) {
