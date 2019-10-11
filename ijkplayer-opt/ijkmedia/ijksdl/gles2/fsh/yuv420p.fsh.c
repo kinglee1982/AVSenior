@@ -139,6 +139,8 @@ static const char g_shader[] = IJK_GLES_STRING(
 			float tx = vv2_Texcoord.x;
 			float ty = vv2_Texcoord.y;
 			float v = tx + ty;
+			//0.01 for line width ;0.020 for line space
+			//v % 0.020
 			if ((v - 0.020 * floor(v / 0.020)) <= 0.01){
 				return vec3(0.3,0.3,0.3);
 			}
@@ -192,6 +194,25 @@ static const char g_shader[] = IJK_GLES_STRING(
 		return inColor;
 	}
 
+	//rgb : 33*33*b + 33 * g + r
+	vec3 lut3dMapping(vec3 rgb,float size)
+	{
+		if (size <= 1.0)return rgb;
+		float s = size - 1.0;
+		float r = rgb.r * s;
+		float g = rgb.g * s;
+		float b = rgb.b * s;
+
+		int iSize = int(size);
+		int ib = int(b);
+		int ig = int(g);
+		int ir = int(r);
+
+		int vidx = iSize * iSize * ib + iSize * ig + ir;
+		int index = vidx * 3;
+		return rgb;
+	}
+
     void main()
     {
         mediump vec3 yuv;
@@ -224,7 +245,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 			vec3 crgb = vec3(cunstom_Colors.r,cunstom_Colors.g,cunstom_Colors.b);
 			color = auxfocus(color,crgb);
 		}else if (fcmd == 0x5){
-        	
+        	color = lut3dMapping(color,cunstom_Params_plus.w);
 		}else if (fcmd == 0x6){
         	color = zebra(color,yuv.x,cunstom_Params_plus.w);
 		}

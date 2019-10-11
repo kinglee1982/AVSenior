@@ -476,6 +476,8 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		float auxflw = renderer->cur_draw_t.auxfocuslinewidth * 1.0f;
 		wfactor = auxflw / renderer->frame_width;
 		hfactor = auxflw / renderer->frame_height;
+	}else if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_3DLUT){
+		
 	}
 	glUniform2i(renderer->cunstom_cmd_type,renderer->cur_draw_t.drawType & 0xF,type);
 	glUniform4f(renderer->cunstom_Params,arg1,arg2,arg3,arg4);
@@ -641,7 +643,7 @@ static GLfloat *IJK_GLES2_Draw_FrameVertexs(IJK_GLES2_Renderer *renderer,float w
 	return vertexs;
 }
 
-static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay,int type,int r)
+static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay,int type,int loop)
 {
 	float centerX = (renderer->cur_draw_t.centerX / 100.0 - 0.5) * 2.0;
 	float centerY = (0.5 - renderer->cur_draw_t.centerY / 100.0) * 2.0;
@@ -676,24 +678,20 @@ static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOve
 		return renderer->cur_draw_t.lumaVertexs;
 	}else{
 		memset(&renderer->cur_draw_t.oscVertexs[0],0x00,sizeof(renderer->cur_draw_t.oscVertexs));
-		memset(&renderer->cur_draw_t.oscYNumbers[0],0x00,sizeof(renderer->cur_draw_t.oscYNumbers));
-		for (int w=0;w<renderer->frame_width;w++){
-			#if 0
-				for (int h=0;h<renderer->frame_height;h++){
-					renderer->cur_draw_t.oscYNumbers[w] += ybytes[w + h * renderer->frame_width];
-				}
-				renderer->cur_draw_t.oscYNumbers[w] /= renderer->frame_height;
-			#else
-				renderer->cur_draw_t.oscYNumbers[w] += ybytes[w + r * renderer->frame_width];
-			#endif
+		int hstart = loop * OSC_HEIGHT_STEP;
+		int hend = hstart + OSC_HEIGHT_STEP;
+		hstart = hstart < renderer->frame_height ? hstart : renderer->frame_height;
+		hend = hend < renderer->frame_height ? hend : renderer->frame_height;
+		if (hend <= hstart)return NULL;
+		for (int h = hstart;h < hend;h++){
+			int yStart = (h - hstart) * renderer->frame_width;
+			for (int i=0;i<renderer->frame_width;i++){
+				float yoffV = ybytes[i + h * renderer->frame_width] * yoffset / 255.0;
+				renderer->cur_draw_t.oscVertexs[(yStart + i) * 3] = idex[0] + i * 1.0 / renderer->frame_width;
+				renderer->cur_draw_t.oscVertexs[(yStart + i) * 3 + 1] = idex[7] + yoffV;
+				renderer->cur_draw_t.oscVertexs[(yStart + i) * 3 + 2] = 0.0;
+			}
 		}
-		for (int i=0;i<renderer->frame_width;i++){
-			float yoffV = renderer->cur_draw_t.oscYNumbers[i] * yoffset / 255.0;
-			renderer->cur_draw_t.oscVertexs[i * 3] = idex[0] + i * 1.0 / renderer->frame_width;
-			renderer->cur_draw_t.oscVertexs[i * 3 + 1] = idex[7] + yoffV;
-			renderer->cur_draw_t.oscVertexs[i * 3 + 2] = 0.0;
-		}
-		
 		return renderer->cur_draw_t.oscVertexs;
 	}
 	
@@ -729,8 +727,9 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 		}else if (lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ||
 					lineMarkupType == GLES_MARKUP_TYPE_SCOPEBOX){
 			int cycleNumber = lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ? 1 : renderer->frame_height;
-			for (int r = 0;r < cycleNumber;r ++){
-				GLfloat *vertexs = IJK_GLES2_Luma_Vertexs(renderer,overlay,lineMarkupType,r);
+			for (int loop = 0;loop < cycleNumber;loop ++){
+				GLfloat *vertexs = IJK_GLES2_Luma_Vertexs(renderer,overlay,lineMarkupType,loop);
+				if (vertexs == NULL)break;
 				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertexs);
 				glEnableVertexAttribArray(renderer->display_position);
 				glUniform4f(renderer->display_color,1.0,1.0,1.0,1.0);
@@ -739,7 +738,14 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 					glDrawArrays(GL_LINES, 0, 255 * 2); 
 				}else{
 					glUniform4f(renderer->display_params,1.0,0.0f,0.0f,0.0f);
-					glDrawArrays(GL_POINTS, 0, renderer->frame_width); 
+
+					int hstart = loop * OSC_HEIGHT_STEP;
+					int hend = hstart + OSC_HEIGHT_STEP;
+					hstart = hstart < renderer->frame_height ? hstart : renderer->frame_height;
+					hend = hend < renderer->frame_height ? hend : renderer->frame_height;
+ 					if (hend > hstart){
+ 						glDrawArrays(GL_POINTS, 0, (hend - hstart) * renderer->frame_width); 
+					}
 				}
 			}
 			glDisableVertexAttribArray(renderer->display_position);
@@ -820,7 +826,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 				break;
 			case GLES_FS_TYPE_AUX_FOCUS:
 				renderer->cur_draw_t.argb = color;
-				renderer->cur_draw_t.brightLimit = (unsigned char)ratio;
+				renderer->cur_draw_t.brightLimit = 100 - (unsigned char)ratio;
 				renderer->cur_draw_t.auxfocuslinewidth = lineW;
 				break;
 			case GLES_FS_TYPE_3DLUT:

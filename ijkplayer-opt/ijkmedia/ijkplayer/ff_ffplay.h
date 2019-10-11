@@ -117,6 +117,8 @@ void      ffp_set_property_int64(FFPlayer *ffp, int id, int64_t value);
 int       ffp_start_record(FFPlayer *ffp, const char *file_name,int vfps);
 int       ffp_stop_record(FFPlayer *ffp);
 int       ffp_record_file(FFPlayer *ffp, AVPacket *packet);
+int       ffp_start_3dlut(FFPlayer *ffp,const char *filePath);
+int       ffp_stop_3dlut(FFPlayer *ffp);
 
 // must be freed with free();
 struct IjkMediaMeta *ffp_get_meta_l(FFPlayer *ffp);

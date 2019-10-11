@@ -134,6 +134,11 @@ void ijkmp_android_set_gles_filter(IjkMediaPlayer *mp,int cmd,int type,
 	pthread_mutex_lock(&mp->mutex);
 	if (mp && mp->ffplayer && mp->ffplayer->vout) {
 		SDL_VoutAndroid_setFilter(mp->ffplayer->vout,cmd,centerX, centerY, type, ratio, color, lineW,filePath);
+		if (cmd == 0x5 && filePath != NULL && strlen(filePath) > 1){
+			ijkmp_start_3dlut(mp,filePath);
+		}else if ((cmd & 0x000F) != 0){
+			ijkmp_stop_3dlut(mp);
+		}
 	}
     pthread_mutex_unlock(&mp->mutex);
 }

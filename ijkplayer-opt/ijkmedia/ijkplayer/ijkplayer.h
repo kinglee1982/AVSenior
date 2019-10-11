@@ -213,6 +213,8 @@ int             ijkmp_get_loop(IjkMediaPlayer *mp);
 int ijkmp_start_record(IjkMediaPlayer *mp,const char *file_name,int vfps);
 int ijkmp_stop_record(IjkMediaPlayer *mp);
 int ijkmp_isRecording(IjkMediaPlayer *mp);
+int ijkmp_start_3dlut(IjkMediaPlayer *mp,const char *file_name);
+int ijkmp_stop_3dlut(IjkMediaPlayer *mp);
 
 void           *ijkmp_get_weak_thiz(IjkMediaPlayer *mp);
 void           *ijkmp_set_weak_thiz(IjkMediaPlayer *mp, void *weak_thiz);

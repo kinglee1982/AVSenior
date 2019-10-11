@@ -2192,18 +2192,18 @@ static int decoder_start(Decoder *d, int (*fn)(void *), void *arg, const char *n
     }
     return 0;
 }
-#if SUPPORT_AV_FILTER
+#if SUPPORT_TINTERLACE_FILTER
 static int tinterlace_filter_graph(FFPlayer *ffp, AVFilterGraph **graph, AVFilterContext **src,
-                             AVFilterContext **sink, AVFrame *frame,char *name,char *args)
+                             AVFilterContext **sink, AVFrame *frame)
 {
     AVFilterGraph *filter_graph;
     AVFilterContext *buffer_ctx;
     AVFilter        *buffer;
-    AVFilterContext *filter_ctx;
-    AVFilter        *avfitler;
+    AVFilterContext *tinterlace_ctx;
+    AVFilter        *atinterlace;
     AVFilterContext *buffersink_ctx;
     AVFilter        *buffersink;
-	
+
 	VideoState *is = ffp->is;
 	AVCodecParameters *codecpar = is->video_st->codecpar;
     AVRational fr = av_guess_frame_rate(is->ic, is->video_st, NULL);
@@ -2234,27 +2234,28 @@ static int tinterlace_filter_graph(FFPlayer *ffp, AVFilterGraph **graph, AVFilte
              codecpar->sample_aspect_ratio.num, FFMAX(codecpar->sample_aspect_ratio.den, 1));
     if (fr.num && fr.den)
         av_strlcatf(buffersrc_args, sizeof(buffersrc_args), ":frame_rate=%d/%d", fr.num, fr.den);
+	
     err = avfilter_init_str(buffer_ctx, buffersrc_args);
     if (err < 0) {
         av_log(NULL, AV_LOG_ERROR, "Could not initialize the buffer filter.\n");
         return err;
     }
 
-    avfitler = avfilter_get_by_name(name);
-    if (!avfitler) {
-        av_log(NULL, AV_LOG_ERROR, "Could not find the %s filter.\n",name);
+    atinterlace = avfilter_get_by_name("tinterlace");
+    if (!atinterlace) {
+        av_log(NULL, AV_LOG_ERROR, "Could not find the tinterlace filter.\n");
         return AVERROR_FILTER_NOT_FOUND;
     }
 
-    filter_ctx = avfilter_graph_alloc_filter(filter_graph, avfitler, name);
-    if (!filter_ctx) {
-        av_log(NULL, AV_LOG_ERROR,"Could not allocate the %s instance.\n",name);
+    tinterlace_ctx = avfilter_graph_alloc_filter(filter_graph, atinterlace, "tinterlace");
+    if (!tinterlace_ctx) {
+        av_log(NULL, AV_LOG_ERROR,"Could not allocate the tinterlace instance.\n");
         return AVERROR(ENOMEM);
     }
-	
-    err = avfilter_init_str(filter_ctx, args);
+
+    err = avfilter_init_str(tinterlace_ctx, "mode=interleave_top:flags=complex_filter");
     if (err < 0) {
-        av_log(NULL, AV_LOG_ERROR,"Could not initialize the %s filter.\n",name);
+        av_log(NULL, AV_LOG_ERROR,"Could not initialize the tinterlace filter.\n");
         return err;
     }
 	
@@ -2275,9 +2276,9 @@ static int tinterlace_filter_graph(FFPlayer *ffp, AVFilterGraph **graph, AVFilte
         av_log(NULL, AV_LOG_ERROR,"Could not initialize the buffersink instance.\n");
         return err;
     }
-    err = avfilter_link(buffer_ctx, 0, filter_ctx, 0);
+    err = avfilter_link(buffer_ctx, 0, tinterlace_ctx, 0);
     if (err >= 0)
-        err = avfilter_link(filter_ctx, 0, buffersink_ctx, 0);
+        err = avfilter_link(tinterlace_ctx, 0, buffersink_ctx, 0);
     if (err < 0) {
         av_log(NULL, AV_LOG_ERROR, "Error connecting filters\n");
         return err;
@@ -2312,7 +2313,7 @@ static int ffplay_video_thread(void *arg)
     int64_t last_dst_pts = -1;
     int retry_convert_image = 0;
     int convert_frame_count = 0;
-#if SUPPORT_AV_FILTER
+#if SUPPORT_TINTERLACE_FILTER
 	AVFilterGraph *tingraph = NULL;
     AVFilterContext *b_out = NULL, *b_in = NULL;
 #endif
@@ -2444,38 +2445,10 @@ static int ffplay_video_thread(void *arg)
                 is->frame_last_filter_delay = 0;
             tb = av_buffersink_get_time_base(filt_out);
 #endif
-#if SUPPORT_AV_FILTER
-		static char *tempPath = NULL;
-		bool needLut = false;
-		if ((ffp->filterFileName != NULL && tempPath == NULL) ||
-			(ffp->filterFileName != NULL && tempPath != NULL && strcmp(ffp->filterFileName,tempPath) != 0)){
-			if (tingraph != NULL){
-				avfilter_graph_free(&tingraph);
-				tingraph = NULL;
-			}
-			needLut = true;
-			av_log(NULL, AV_LOG_ERROR, "needLut FileName : %s\n",ffp->filterFileName);
-		}else if (ffp->filterFileName == NULL && tempPath != NULL){
-			if (tingraph != NULL){
-				avfilter_graph_free(&tingraph);
-				tingraph = NULL;
-			}
-			needLut = false;
-			av_log(NULL, AV_LOG_ERROR, "no needLut \n");
-		}
-		tempPath = ffp->filterFileName;
-		if((needLut /*|| ffp->video_play_type == AVPLAY_LIVE_INTERLACE || ffp->video_play_type == AVPLAY_PLAYBACK_INTERLACE*/)
+#if SUPPORT_TINTERLACE_FILTER
+		if((ffp->video_play_type == AVPLAY_LIVE_INTERLACE || ffp->video_play_type == AVPLAY_PLAYBACK_INTERLACE)
 			&& tingraph == NULL){
-			char name[32] = {0};
-			char args[256] = {0};
-			if (needLut){
-				sprintf(name,"lut3d");
-				snprintf(args, sizeof(args),"file=%s:interp=trilinear",ffp->filterFileName);
-			}else{
-				sprintf(name,"tinterlace");
-				snprintf(args, sizeof(args),"mode=interleave_top:flags=complex_filter");
-			}
-			int iret = tinterlace_filter_graph(ffp, &tingraph,&b_in,&b_out,frame,name,args);
+			int iret = tinterlace_filter_graph(ffp, &tingraph,&b_in,&b_out,frame);
 			if (iret != 0){
 				if (tingraph != NULL){
 					avfilter_graph_free(&tingraph);
@@ -2524,7 +2497,7 @@ static int ffplay_video_thread(void *arg)
 #if CONFIG_AVFILTER
         }
 #endif
-#if SUPPORT_AV_FILTER
+#if SUPPORT_TINTERLACE_FILTER
 		}
 #endif
 
@@ -2536,7 +2509,7 @@ static int ffplay_video_thread(void *arg)
 #if CONFIG_AVFILTER
     avfilter_graph_free(&graph);
 #endif
-#if SUPPORT_AV_FILTER
+#if SUPPORT_TINTERLACE_FILTER
 	avfilter_graph_free(&tingraph);
 #endif
 
@@ -4171,7 +4144,7 @@ void ffp_global_init()
 #if CONFIG_AVDEVICE
     avdevice_register_all();
 #endif
-#if CONFIG_AVFILTER || SUPPORT_AV_FILTER
+#if CONFIG_AVFILTER || SUPPORT_TINTERLACE_FILTER
     avfilter_register_all();
 #endif
 
@@ -5374,7 +5347,7 @@ int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
     AVStream *out_stream ;
 	int vfps = fps;
     av_log(ffp, AV_LOG_ERROR, "vfps = %d",fps);
-    if (ffp->is_record!=AVRECORD_STATE_UNKNOWN) { 
+    if (ffp->is_record!=AVRECORD_STATE_UNKNOWN) { // 已经在录制
         av_log(ffp, AV_LOG_ERROR, "recording has started");
         return -1;
     }
@@ -5385,16 +5358,18 @@ int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
     ffp->is_record = AVRECORD_STATE_INIT;
     ffp->record_error = 0;
     
-    if (!file_name || !strlen(file_name)) { 
+    if (!file_name || !strlen(file_name)) { // 没有路径
         av_log(ffp, AV_LOG_ERROR, "filename is invalid");
         goto end;
     }
     
-    if (!is || !is->ic|| is->paused || is->abort_request) {
+    if (!is || !is->ic|| is->paused || is->abort_request) { // 没有上下文，或者上下文已经停止
         av_log(ffp, AV_LOG_ERROR, "is,is->ic,is->paused is invalid");
         goto end;
     }
     
+        
+    // 初始化一个用于输出的AVFormatContext结构体
     avformat_alloc_output_context2(&ffp->m_ofmt_ctx, NULL, "mp4", file_name);
     if (!ffp->m_ofmt_ctx) {
         av_log(ffp, AV_LOG_ERROR, "Could not create output context filename is %s\n", file_name);
@@ -5416,6 +5391,7 @@ int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
         av_log(ffp, AV_LOG_ERROR, "i:%d,codec id:%d\n",i,in_stream->codecpar->codec_id);//AV_CODEC_ID_H264
         //av_log(ffp, AV_LOG_ERROR, "in stream time_base-- num:%d, den:%d\n",in_stream->time_base.num,in_stream->time_base.den);
         //av_log(ffp, AV_LOG_ERROR, "framerate time_base-- num:%d, den:%d\n",out_stream->codec->framerate.num,out_stream->codec->framerate.den);
+        // 将输入视频/音频的参数拷贝至输出视频/音频的AVCodecContext结构体
         if (avcodec_copy_context(out_stream->codec, in_stream->codec) < 0) {
             av_log(ffp, AV_LOG_ERROR, "Failed to copy context from input to output stream codec context\n");
             goto end;
@@ -5461,6 +5437,7 @@ int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
     //av_dump_format(ffp->m_ofmt_ctx, 0, file_name, 1);
    // av_log(ffp, AV_LOG_ERROR, "ffp->audio_duration:%"PRId64", ffp->video_duration:%"PRId64"\n",ffp->audio_duration,ffp->video_duration);
     av_log(ffp, AV_LOG_ERROR, "open record file %s\n",file_name);
+    // 打开输出文件
     if (!(ffp->m_ofmt->flags & AVFMT_NOFILE)) {
         if (avio_open(&ffp->m_ofmt_ctx->pb, file_name, AVIO_FLAG_WRITE) < 0) {
             av_log(ffp, AV_LOG_ERROR, "Could not open output file '%s'", file_name);
@@ -5468,6 +5445,7 @@ int ffp_start_record(FFPlayer *ffp, const char *file_name,int fps)
         }
     }
     
+    // 写视频文件头
     if (avformat_write_header(ffp->m_ofmt_ctx, &ffp->format_opts) < 0) {
         av_log(ffp, AV_LOG_ERROR, "Error occurred when opening output file\n");
         goto end;
@@ -5622,23 +5600,4 @@ int ffp_stop_record(FFPlayer *ffp)
     return 0;
 }
 
-int ffp_start_3dlut(FFPlayer *ffp,const char *filePath)
-{
-	int len = strlen(filePath);
-	if (filePath == NULL || len <= 0)return -1;
-	if (ffp->filterFileName != NULL && strcmp(ffp->filterFileName,filePath) == 0)return 1;
-	if (ffp->filterFileName != NULL)free(ffp->filterFileName);
-	
-	ffp->filterFileName = (char *)mallocz(len + 1);
-	sprintf(ffp->filterFileName,"%s",filePath);
-	return 0;
-}
-int ffp_stop_3dlut(FFPlayer *ffp)
-{
-	if (ffp->filterFileName != NULL){
-		free(ffp->filterFileName);
-		ffp->filterFileName = NULL;
-	}
-	return 0;
-}
 

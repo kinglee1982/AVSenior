@@ -150,7 +150,7 @@ void ijkmp_set_frame_at_time(IjkMediaPlayer *mp, const char *path, int64_t start
 {
     assert(mp);
 
-    MPTRACE("%s(%s,%lld,%lld,%d,%d)\n", __func__, path, start_time, end_time, num, definition);
+    MPTRACE("%s(%s,%"PRId64",%"PRId64",%d,%d)\n", __func__, path, start_time, end_time, num, definition);
     ffp_set_frame_at_time(mp->ffplayer, path, start_time, end_time, num, definition);
     MPTRACE("%s()=void\n", __func__);
 }
@@ -821,5 +821,19 @@ int ijkmp_stop_record(IjkMediaPlayer *mp)
 
 int ijkmp_isRecording(IjkMediaPlayer *mp) {
     return (mp->ffplayer->is_record == AVRECORD_STATE_RECORDING) && (mp->ffplayer->video_num > 0);
+}
+
+int ijkmp_start_3dlut(IjkMediaPlayer *mp,const char *file_name)
+{
+    assert(mp);
+    int retval = ffp_start_3dlut(mp->ffplayer,file_name);
+    return retval;
+}
+
+int ijkmp_stop_3dlut(IjkMediaPlayer *mp)
+{
+    assert(mp);
+    int retval = ffp_stop_3dlut(mp->ffplayer);
+    return retval;
 }
 

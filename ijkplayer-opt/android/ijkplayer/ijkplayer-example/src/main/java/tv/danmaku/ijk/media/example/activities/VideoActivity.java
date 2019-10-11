@@ -222,7 +222,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
     private static int fAuxFocusSensity[] = {0x0A,0x1E,0x32,0x4B,0x5A};
     private static int framecmd[] = {0xF0,0x10,0x20,0x100,0x100,0x100,0x100,0x30,0x30,0x30,0x40,0x50,0x60};
     private static float fScale[] = {2.0f,3.0f,4.0f};
-    private static int filtercmd[] = {0xF,0x1,0x2,0x2,0x2,0x2,0x2,0x2,0x2,0x3,0x6,0x6,0x4};
+    private static int filtercmd[] = {0xF,0x1,0x2,0x2,0x2,0x2,0x2,0x2,0x2,0x3,0x6,0x6,0x4,0x5,0x5,0x5};
     private Spinner.OnItemSelectedListener spinnerListner =
             new Spinner.OnItemSelectedListener() {
         @Override
@@ -249,7 +249,8 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
             cmd = filtercmd[fidxType];
             rati = cmd == 0x6 ? (fidxType == 10 ? 50.0f : 80.0f) : fAuxFocusSensity[idxAZoom];
             mVideoView.setEGLFilter(cmd, 0x0, 0, 0,
-                    rati, cmd  == 0x2 ? colors[fidxType - 2] : fcolors[idxColor], fLineW[idxFLineW], "");
+                    rati, cmd  == 0x2 ? colors[fidxType - 2] : fcolors[idxColor], fLineW[idxFLineW],
+                    cmd == 0x5 ? "/sdcard/EA_Cinematic_Lut" + (filtercmd.length - fidxType) + ".cube" : "");
         }
         @Override
         public void onNothingSelected(AdapterView<?> arg0) {

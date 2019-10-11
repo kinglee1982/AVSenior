@@ -88,6 +88,7 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 
 #define LUMA_VERTEX_NUM (255 * 2 * 3)
 #define OSC_VIDEO_MAX_WIDTH 3840
+#define OSC_HEIGHT_STEP 100
 
 typedef struct GLES2_Draw_Type_t{
 	unsigned short drawType;
@@ -108,8 +109,7 @@ typedef struct GLES2_Draw_Type_t{
 	char filePath[128];//3d lut filepath
 	GLfloat rectVertexs[GLES_RECT_POINTS_COORD_NUM];
 	GLfloat lumaVertexs[LUMA_VERTEX_NUM];
-	GLfloat oscVertexs[OSC_VIDEO_MAX_WIDTH * 3];
-	int oscYNumbers[OSC_VIDEO_MAX_WIDTH];
+	GLfloat oscVertexs[OSC_VIDEO_MAX_WIDTH * 3 * OSC_HEIGHT_STEP];
 }GLES2_Draw_Type;
 
 void IJK_GLES2_printString(const char *name, GLenum s);

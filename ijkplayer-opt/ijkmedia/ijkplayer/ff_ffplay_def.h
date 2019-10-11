@@ -57,7 +57,7 @@
 # include "libavfilter/buffersink.h"
 # include "libavfilter/buffersrc.h"
 #endif
-#if SUPPORT_TINTERLACE_FILTER
+#if SUPPORT_AV_FILTER
 # include "libavfilter/avfilter.h"
 #endif
 
@@ -748,6 +748,7 @@ typedef struct FFPlayer {
 	AVPacket *m_packet;
 	int switch_audio_db;
 	enum AVPlayType video_play_type;
+	char *filterFileName;
 //end added
 	//int get_idr;    
     //int is_first;                       // if the first
@@ -889,6 +890,7 @@ inline static void ffp_reset_internal(FFPlayer *ffp)
 
 	ffp->video_play_type = AVPLAY_LIVE_NORMAL;// option added by yuanzc
 	ffp->switch_audio_db = 0;
+	ffp->filterFileName = NULL;
 
     av_application_closep(&ffp->app_ctx);
     ijkio_manager_destroyp(&ffp->ijkio_manager_ctx);
