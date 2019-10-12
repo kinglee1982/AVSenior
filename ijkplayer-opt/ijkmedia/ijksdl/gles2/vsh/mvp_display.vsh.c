@@ -24,13 +24,11 @@
 static const char g_shader[] = IJK_GLES_STRING(
     precision highp float;
     attribute highp vec4 display_position;
-	uniform highp vec4 display_params;
     uniform         mat4 display_mvp;
 
     void main()
     {
         gl_Position  = display_mvp * display_position;
-		gl_PointSize = display_params.x;
     }
 );
 

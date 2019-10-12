@@ -18,6 +18,7 @@
  * License along with ijkPlayer; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
+#include <math.h>
 
 #include "internal.h"
 static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
@@ -150,7 +151,6 @@ static void IJK_GLES2_Display_create(IJK_GLES2_Renderer *renderer)
 
 
     renderer->display_position   = glGetAttribLocation(renderer->display_program, "display_position");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(display_position)");
-	renderer->display_params = glGetUniformLocation(renderer->display_program, "display_params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_params)");
     renderer->display_mvp        = glGetUniformLocation(renderer->display_program, "display_mvp");    IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_mvp)");
 	renderer->display_color = glGetUniformLocation(renderer->display_program, "display_color");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_color)");
     return;
@@ -764,8 +764,6 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 					glLineWidth(2.0);
 					glDrawArrays(GL_LINES, 0, 255 * 2); 
 				}else{
-					glUniform4f(renderer->display_params,1.0f,0.0f,0.0f,0.0f);
-
 					int hstart = loop * OSC_HEIGHT_STEP;
 					int hend = hstart + OSC_HEIGHT_STEP;
 					hstart = hstart < renderer->frame_height ? hstart : renderer->frame_height;
@@ -795,15 +793,30 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 				glDrawArrays(GL_LINES, 0, 5); 
 				glDisableVertexAttribArray(renderer->display_position);
 			}else{
-				float vertics[] = {0.0f,0.0f,0.0f};
-				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertics);
 				glEnableVertexAttribArray(renderer->display_position);
-				float size = renderer->cur_draw_t.cFlagType == 2 ? renderer->frame_height * 0.07f : renderer->frame_height * 0.04f;
-				glUniform4f(renderer->display_params,size,0.0f,0.0f,0.0f);
 				int argb = renderer->cur_draw_t.argbFrame;
 				glUniform4f(renderer->display_color,((argb >> 16) & 0xFF) / 255.0f,
 					((argb >> 8) & 0xFF) / 255.0f,(argb & 0xFF) / 255.0f,((argb >> 24) & 0xFF) / 255.0f);
-				glDrawArrays(GL_POINTS, 0, 1); 
+
+			#define VERTEX_DATA_NUM 360
+			#define PI 3.14159265
+				float whratio = renderer->frame_width * 1.0f / renderer->frame_height;
+				float size = renderer->cur_draw_t.cFlagType == 2 ? 0.08f : 0.05f;
+				float radian = (float) (2 * PI / VERTEX_DATA_NUM);
+				GLfloat *circleVertex = renderer->cur_draw_t.circleVertexs;
+				circleVertex[0] = 0.0f;
+        		circleVertex[1] = 0.0f;
+				circleVertex[2] = 0.0f;
+				for (int i = 0; i < VERTEX_DATA_NUM; i++) {
+           			circleVertex[3 * i + 3] = (float) (size * cos(radian * i)) / whratio;
+            		circleVertex[3 * i + 1 + 3] = (float) (size * sin(radian * i));
+					circleVertex[3 * i + 2 + 3] = 0.0f;
+        		}
+				circleVertex[VERTEX_DATA_NUM * 3 + 3] = (float) (size * cos(radian)) / whratio;
+        		circleVertex[VERTEX_DATA_NUM * 3 + 1 + 3] = (float) (size * sin(radian));
+				circleVertex[VERTEX_DATA_NUM * 3 + 2 + 3] = 0.0f;
+				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, circleVertex);
+				glDrawArrays(GL_TRIANGLE_FAN, 0, VERTEX_DATA_NUM + 2);
 				glDisableVertexAttribArray(renderer->display_position);
 			}
 		}

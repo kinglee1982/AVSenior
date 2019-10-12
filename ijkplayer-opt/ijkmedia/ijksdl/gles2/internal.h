@@ -60,7 +60,6 @@ typedef struct IJK_GLES2_Renderer
     GLuint display_vertex_shader;
     GLuint display_fragment_shader;
 	GLuint display_position; 
-    GLuint display_params;
 	GLuint display_color;
     GLuint display_mvp;
 //end for display
