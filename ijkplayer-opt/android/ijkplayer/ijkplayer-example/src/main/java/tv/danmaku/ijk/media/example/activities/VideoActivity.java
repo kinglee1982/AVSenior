@@ -241,9 +241,9 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
             float rati = cmd == 0x30 ? fScale[idxScale] : ratios[idxRatio];
             int centerX = idxType == framecmd.length - 4 ? 75 : (idxType == framecmd.length - 6 ? 25 : 50);
             int centerY = 50;
-            mVideoView.setEGLFilter(cmd, cmd == 0x10 ? fAZoom[idxAZoom] : (
-                    cmd == 0x100 ? idxType - 3: (cmd == 0x30 ? 3 : fOutAlpha[idxFout])),
-                    centerX, centerY, rati, fcolors[idxColor],
+            int type = cmd == 0x10 ? fAZoom[idxAZoom] : (
+                    cmd == 0x100 ? idxType - 3: (cmd == 0x30 ? idxType - 6 : fOutAlpha[idxFout]));
+            mVideoView.setEGLFilter(cmd,type, centerX, centerY, rati, fcolors[idxColor],
                     fLineW[idxFLineW], "");
 
             cmd = filtercmd[fidxType];

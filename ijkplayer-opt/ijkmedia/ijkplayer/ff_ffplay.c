@@ -2470,7 +2470,7 @@ static int ffplay_video_thread(void *arg)
 			char args[256] = {0};
 			if (needLut){
 				sprintf(name,"lut3d");
-				snprintf(args, sizeof(args),"file=%s:interp=trilinear",ffp->filterFileName);
+				snprintf(args, sizeof(args),"file=%s:interp=nearest",ffp->filterFileName);
 			}else{
 				sprintf(name,"tinterlace");
 				snprintf(args, sizeof(args),"mode=interleave_top:flags=complex_filter");

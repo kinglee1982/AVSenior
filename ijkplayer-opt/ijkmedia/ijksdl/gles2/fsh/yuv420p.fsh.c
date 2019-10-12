@@ -113,7 +113,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 		}
 		return vec4(inColor,1.0);
 	}
-
+#if 0
 	vec3 magnifier(vec3 yuv)
 	{
 		float centerX = cunstom_Params.x;
@@ -132,7 +132,35 @@ static const char g_shader[] = IJK_GLES_STRING(
 		}
 		return yuv;
 	}
-
+#else
+	vec3 magnifier(vec3 yuv)
+	{
+		float x = vv2_Texcoord.x;
+		float y = vv2_Texcoord.y;
+		float l = cunstom_Params.x;
+		float r = cunstom_Params.y;
+		float t = cunstom_Params.z;
+		float b = cunstom_Params.w;
+		
+		float ratio = cunstom_Params_plus.x;
+		float offsetX = cunstom_Params_plus.y;
+		float offsetY = cunstom_Params_plus.z;
+		if (x > l){
+			if (x < r){
+				if (y > t){
+					if (y < b){
+						float xp = x / ratio + offsetX;
+						float yp = y / ratio + offsetY;
+						yuv.x = (texture2D(us2_SamplerX, vec2(xp, yp)).r - (16.0 / 255.0));
+    					yuv.y = (texture2D(us2_SamplerY, vec2(xp, yp)).r - 0.5);
+    					yuv.z = (texture2D(us2_SamplerZ, vec2(xp, yp)).r - 0.5);
+					}
+				}
+			}
+		}
+		return yuv;
+	}
+#endif
 	vec3 zebra(vec3 inColor,float y,float division)
 	{
 		if (y >= division){

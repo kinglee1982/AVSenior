@@ -27,9 +27,9 @@
         <item>中心标记小+</item>
         <item>中心标记大⚪</item>
         <item>中心标记小⚪</item>
-        <item>放大镜左</item>
+        <item>放大镜小</item>
         <item>放大镜中</item>
-        <item>放大镜右</item>
+        <item>放大镜大</item>
         <item>亮度表</item>
         <item>波形图</item>
     </string-array>
