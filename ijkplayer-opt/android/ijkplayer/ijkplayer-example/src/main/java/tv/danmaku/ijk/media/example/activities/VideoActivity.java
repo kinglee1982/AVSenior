@@ -238,7 +238,8 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
             int idxAZoom = arg0 == mAZoomSpinner ? arg2 : mAZoomSpinner.getSelectedItemPosition();
             int cmd = framecmd[idxType];
 
-            float rati = cmd == 0x30 ? fScale[idxScale] : ratios[idxRatio];
+            float rati = cmd == 0x30 ? fScale[idxScale] : (cmd == 0x40 || cmd == 0x50 ?
+                    fOutAlpha[idxFout]  * 100 / 255 : ratios[idxRatio]);
             int centerX = idxType == framecmd.length - 4 ? 75 : (idxType == framecmd.length - 6 ? 25 : 50);
             int centerY = 50;
             int type = cmd == 0x10 ? fAZoom[idxAZoom] : (

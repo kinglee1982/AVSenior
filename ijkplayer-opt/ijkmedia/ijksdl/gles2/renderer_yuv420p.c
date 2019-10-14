@@ -31,16 +31,26 @@ static GLboolean yuv420p_use(IJK_GLES2_Renderer *renderer)
     if (0 == renderer->plane_textures[0])
         glGenTextures(3, renderer->plane_textures);
 
-    for (int i = 0; i < 3; ++i) {
+	if (0 == renderer->lut_textures[0])
+        glGenTextures(1, renderer->lut_textures);
+
+	int i = 0;
+    for (; i < 3 + 1; ++i) {
         glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(GL_TEXTURE_2D, renderer->plane_textures[i]);
+		if (i < 3)
+        	glBindTexture(GL_TEXTURE_2D, renderer->plane_textures[i]);
+		else
+			glBindTexture(GL_TEXTURE_2D, renderer->lut_textures[0]);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-        glUniform1i(renderer->us2_sampler[i], i);
+		if (i < 3)
+        	glUniform1i(renderer->us2_sampler[i], i);
+		else
+			glUniform1i(renderer->lut_sampler, i);
     }
 
     glUniformMatrix3fv(renderer->um3_color_conversion, 1, GL_FALSE, IJK_GLES2_getColorMatrix_bt709());
@@ -54,7 +64,6 @@ static GLsizei yuv420p_getBufferWidth(IJK_GLES2_Renderer *renderer, SDL_VoutOver
 
     return overlay->pitches[0] / 1;
 }
-
 static GLboolean yuv420p_uploadTexture(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay)
 {
     if (!renderer || !overlay)
@@ -92,17 +101,22 @@ static GLboolean yuv420p_uploadTexture(IJK_GLES2_Renderer *renderer, SDL_VoutOve
                      GL_UNSIGNED_BYTE,
                      pixels[plane]);
     }
+	if (renderer->cur_draw_t.lutSize > 0){
+		glBindTexture(GL_TEXTURE_2D, renderer->lut_textures[0]);
 
+		int hLine = renderer->cur_draw_t.lutSize / 8 + (renderer->cur_draw_t.lutSize % 8 == 0 ? 0 : 1);
+        glTexImage2D(GL_TEXTURE_2D,
+                     0,
+                     GL_RGB,
+                     renderer->cur_draw_t.lutSize * 8,
+                     renderer->cur_draw_t.lutSize * hLine,
+                     0,
+                     GL_RGB,
+                     GL_UNSIGNED_BYTE,
+                     renderer->cur_draw_t.lutDatas);
+	}
     return GL_TRUE;
 }
-
-static void yuv420p_shaderChange(IJK_GLES2_Renderer *renderer,int fsType)
-{
-	fsType = fsType == 0xF ? 0 : fsType;
-	ALOGI("yuv420p_shaderChange fsType = %d!!\n",fsType);
-	IJK_GLES2_Renderer_changeFShader(renderer,IJK_GLES2_getFragmentShader_yuv420p());
-}
-
 
 IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_yuv420p()
 {
@@ -114,7 +128,8 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_yuv420p()
     renderer->us2_sampler[0] = glGetUniformLocation(renderer->program, "us2_SamplerX"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerX)");
     renderer->us2_sampler[1] = glGetUniformLocation(renderer->program, "us2_SamplerY"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerY)");
     renderer->us2_sampler[2] = glGetUniformLocation(renderer->program, "us2_SamplerZ"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerZ)");
-
+    renderer->lut_sampler = glGetUniformLocation(renderer->program, "lut_sampler"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(lut_sampler)");
+	
     renderer->um3_color_conversion = glGetUniformLocation(renderer->program, "um3_ColorConversion"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(um3_ColorConversionMatrix)");
 	renderer->cunstom_cmd_type = glGetUniformLocation(renderer->program, "cunstom_cmd_type");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_cmd_type)");
 	renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
@@ -125,7 +140,6 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create_yuv420p()
     renderer->func_use            = yuv420p_use;
     renderer->func_getBufferWidth = yuv420p_getBufferWidth;
     renderer->func_uploadTexture  = yuv420p_uploadTexture;
-	renderer->func_shaderChange   = yuv420p_shaderChange;
 
     return renderer;
 fail:

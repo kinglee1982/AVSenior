@@ -91,6 +91,11 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 #define OSC_HEIGHT_STEP 100
 #define CIRCLE_MAX_RADIUS 96
 
+#define LUT_MAX_DATA_LEN (512 * 512 * 3)
+#define LUT_MAX_LEVEL 64
+#define LUT_MAX_LINE_SIZE 256
+
+
 typedef struct GLES2_Draw_Type_t{
 	unsigned short drawType;
 	unsigned char centerX;//0-100 percent
@@ -101,13 +106,16 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char alphaOutside; //0x00-0xff
 	unsigned char brightLimit; //0-100  for zebra-stripe and aux focus
 	unsigned char auxfocuslinewidth; //pixel
+	unsigned char alphabscope; //0-100
 	float wireFrameRatio;//frame scale
 	float partZoomScale;//part scale
 	float partZoomRatio; //part ratio
 	float whRatio;// w / h
 	int argbFrame;//color for line frame
 	int argb;//color
-	char filePath[128];//3d lut filepath
+	int lutSize;
+	char lutFilePath[128];//3d lut filepath
+	unsigned char lutDatas[LUT_MAX_DATA_LEN];
 	GLfloat rectVertexs[GLES_RECT_POINTS_COORD_NUM];
 	GLfloat lumaVertexs[LUMA_VERTEX_NUM];
 	GLfloat oscVertexs[OSC_VIDEO_MAX_WIDTH * 3 * OSC_HEIGHT_STEP];
@@ -140,7 +148,6 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
 #define IJK_GLES2_GRAVITY_RESIZE_ASPECT         (1) // Preserve aspect ratio; fit within view bounds.
 #define IJK_GLES2_GRAVITY_RESIZE_ASPECT_FILL    (2) // Preserve aspect ratio; fill view bounds.
 GLboolean IJK_GLES2_Renderer_setGravity(IJK_GLES2_Renderer *renderer, int gravity, GLsizei view_width, GLsizei view_height);
-void IJK_GLES2_Renderer_changeFShader(IJK_GLES2_Renderer *renderer, const char *fragment_shader_source);
 void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 	int centerX,int centerY,float ratio,int color,int lineW,const char *filePath);
 #endif

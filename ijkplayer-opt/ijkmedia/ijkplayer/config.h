@@ -32,7 +32,7 @@
 #define CONFIG_AVFILTER 0
 
 //added by yuanzc for 30p to 60i
-#define SUPPORT_AV_FILTER 1
+#define SUPPORT_AV_FILTER 0
 
 
 #ifdef FFP_MERGE

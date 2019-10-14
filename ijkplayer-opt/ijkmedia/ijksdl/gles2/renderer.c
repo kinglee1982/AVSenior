@@ -18,6 +18,10 @@
  * License along with ijkPlayer; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <math.h>
 
 #include "internal.h"
@@ -91,7 +95,10 @@ void IJK_GLES2_Renderer_reset(IJK_GLES2_Renderer *renderer)
             renderer->plane_textures[i] = 0;
         }
     }
-
+	if (renderer->lut_textures[0]) {
+		glDeleteTextures(1, &renderer->lut_textures[0]);
+        renderer->lut_textures[0] = 0;
+	}
 	IJK_GLES2_Display_reset(renderer);
 }
 
@@ -243,7 +250,6 @@ IJK_GLES2_Renderer *IJK_GLES2_Renderer_create(SDL_VoutOverlay *overlay)
 		renderer->cur_draw_t.rectVertexs[i + 1] = (i == 6 || i == 9) ? -1.0f : 1.0f;
 		renderer->cur_draw_t.rectVertexs[i + 2] = 0.0f;
 	}
-	renderer->need_shader_change = false;
 	
     renderer->format = overlay->format;
     return renderer;
@@ -485,6 +491,8 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		arg2 = ( 1.0f + idex[3]) / 2.0f;
 		arg3 = (1.0f - idex[1]) / 2.0f;
 		arg4 = (1.0f - idex[7]) / 2.0f;
+
+		plusarg1 = renderer->cur_draw_t.alphabscope / 100.0f;
 		type = GLES_IN_ALPHA_TYPE;
 	}
 	if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_ZEBRA_S ||
@@ -494,7 +502,9 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		wfactor = auxflw / renderer->frame_width;
 		hfactor = auxflw / renderer->frame_height;
 	}else if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_3DLUT){
-		
+		plusarg4 = renderer->cur_draw_t.lutSize * 1.0f;
+		wfactor = 1.0f * renderer->frame_width;
+		hfactor = 1.0f * renderer->frame_height;
 	}
 	glUniform2i(renderer->cunstom_cmd_type,renderer->cur_draw_t.drawType & 0xF,type);
 	glUniform4f(renderer->cunstom_Params,arg1,arg2,arg3,arg4);
@@ -596,10 +606,6 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);      IJK_GLES2_checkError_TRACE("glDrawArrays");
 
-	if (renderer->need_shader_change){
-		IJK_GLES2_Set_Custom(renderer);
-		renderer->need_shader_change = false;
-	}
 	IJK_GLES2_Draw_Custom_Graph(renderer,overlay);
     return GL_TRUE;
 }
@@ -823,28 +829,101 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 	}
 }
 
-void IJK_GLES2_Renderer_changeFShader(IJK_GLES2_Renderer *renderer, const char *fragment_shader_source)
+static inline int av_isspace(int c)
 {
-	if (renderer->fragment_shader){
-		glDetachShader(renderer->program, renderer->fragment_shader); 
-        glDeleteShader(renderer->fragment_shader);
-		renderer->fragment_shader = 0;
-	}
-	renderer->fragment_shader = IJK_GLES2_loadShader(GL_FRAGMENT_SHADER, fragment_shader_source);
-    if (renderer->fragment_shader){
-		glAttachShader(renderer->program, renderer->fragment_shader);   IJK_GLES2_checkError("glAttachShader(fragment)");
-		glLinkProgram(renderer->program);                               IJK_GLES2_checkError("glLinkProgram");
-		renderer->us2_sampler[0] = glGetUniformLocation(renderer->program, "us2_SamplerX"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerX)");
-    	renderer->us2_sampler[1] = glGetUniformLocation(renderer->program, "us2_SamplerY"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerY)");
-    	renderer->us2_sampler[2] = glGetUniformLocation(renderer->program, "us2_SamplerZ"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(us2_SamplerZ)");
-    	renderer->um3_color_conversion = glGetUniformLocation(renderer->program, "um3_ColorConversion"); IJK_GLES2_checkError_TRACE("glGetUniformLocation(um3_ColorConversionMatrix)");
-		renderer->cunstom_cmd_type = glGetUniformLocation(renderer->program, "cunstom_cmd_type");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_cmd_type)");
-		renderer->cunstom_Params = glGetUniformLocation(renderer->program, "cunstom_Params");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params)");
-		renderer->cunstom_Params_plus = glGetUniformLocation(renderer->program, "cunstom_Params_plus");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Params_plus)");
-		renderer->cunstom_factor = glGetUniformLocation(renderer->program, "cunstom_factor");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_factor)");
-		renderer->cunstom_Colors = glGetUniformLocation(renderer->program, "cunstom_Colors");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(cunstom_Colors)");
-		IJK_GLES2_Renderer_use(renderer);
+    return c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t' ||
+           c == '\v';
+}
+static int skip_line(const char *p)
+{
+    while (*p && av_isspace(*p))
+        p++;
+    return !*p || *p == '#';
+}
+#define NEXT_LINE(loop_cond) do {                           \
+    if (!fgets(line, sizeof(line), f)) {                   \
+		ALOGE("GLES_FS_TYPE_3DLUT Parse_cube Unexpected EOF\n");\
+        return -2;                         \
+    }                                                       \
+} while (loop_cond)
+static int IJK_GLES2_Renderer_Parse_cube(IJK_GLES2_Renderer *renderer, FILE *f)
+{
+	unsigned char *lutDataAddr = renderer->cur_draw_t.lutDatas;
+    char line[LUT_MAX_LINE_SIZE];
+    float min[3] = {0.0f, 0.0f, 0.0f};
+    float max[3] = {1.0f, 1.0f, 1.0f};
+	float rgb[3];
+	int lutSize = 0;
+    while (fgets(line, sizeof(line), f)) {
+        if (!strncmp(line, "LUT_3D_SIZE ", 12)) {
+            int i, j, k;
+            const int size = strtol(line + 12, NULL, 0);
+			lutSize = size;
+			int S = size;
+			int S2 = S * S;
+			int W = S * 8;
+			int idx,x,y,n = 0;
+			int index;
+
+            if (size < 2 || size > LUT_MAX_LEVEL) {
+                ALOGE("GLES_FS_TYPE_3DLUT Parse_cube invalid 3D LUT size !\n");
+                return -1;
+            }
+            for (k = 0; k < size; k++) {
+                for (j = 0; j < size; j++) {
+                    for (i = 0; i < size; i++) {
+						idx = k *size *size + j * size + i;
+						n = idx / S2;
+						x = i;
+						y = (idx % S2) / S + n / 8 * S;
+						index = y * W + (n % 8) * S + x;
+                        do {
+try_again:
+                            NEXT_LINE(0);
+                            if (!strncmp(line, "DOMAIN_", 7)) {
+                                float *vals = NULL;
+                                if      (!strncmp(line + 7, "MIN ", 4)) vals = min;
+                                else if (!strncmp(line + 7, "MAX ", 4)) vals = max;
+                                if (!vals){
+									ALOGE("GLES_FS_TYPE_3DLUT Parse_cube invalid DATA (DOMAIN_)!\n");
+                                    return -3;
+                                }
+                                sscanf(line + 11, "%f %f %f", vals, vals + 1, vals + 2);
+                                goto try_again;
+                            }
+                        } while (skip_line(line));
+                        if (sscanf(line, "%f %f %f", &rgb[0], &rgb[1], &rgb[2]) != 3){
+							ALOGE("GLES_FS_TYPE_3DLUT Parse_cube invalid DATA (RGB)!\n");
+                            return -3;
+                        }
+                        rgb[0] *= max[0] - min[0];
+                        rgb[1] *= max[1] - min[1];
+                        rgb[2] *= max[2] - min[2];
+						//ALOGE("%f %f %f\n",rgb[0],rgb[1],rgb[2]);
+						lutDataAddr[index * 3] = (unsigned char)(rgb[0] * 255);
+						lutDataAddr[index * 3 + 1] = (unsigned char)(rgb[1] * 255);
+						lutDataAddr[index * 3 + 2] = (unsigned char)(rgb[2] * 255);
+                    }
+                }
+            }
+            break;
+        }
     }
+	renderer->cur_draw_t.lutSize = lutSize;
+    return 0;
+}
+
+static void *parese_cube_thread(void *arg)
+{
+	IJK_GLES2_Renderer *renderer = (IJK_GLES2_Renderer *)arg;
+    FILE *f = fopen(renderer->cur_draw_t.lutFilePath, "r");
+	if (!f) {
+		goto exit;
+	}
+	IJK_GLES2_Renderer_Parse_cube(renderer,f);
+exit:
+    pthread_exit(NULL);
+    return(NULL);
 }
 
 void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
@@ -854,6 +933,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 	int lineMarkupType = cmd & 0x00F0;
 	int partMarkupType = cmd & 0x0F00;
     if ((fsType == 0xF) || (fsType > 0 && fsType < GLES_FS_TYPE_NUMBER)){
+		int lutNewFile = 0;
 		switch(fsType){
 			case GLES_FS_TYPE_NORMAL:
 			case GLES_FS_TYPE_GRAY:
@@ -870,13 +950,33 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 				renderer->cur_draw_t.auxfocuslinewidth = lineW;
 				break;
 			case GLES_FS_TYPE_3DLUT:
-				sprintf(renderer->cur_draw_t.filePath,"%s",filePath);
+				if (strcmp(renderer->cur_draw_t.lutFilePath,filePath) != 0){
+					lutNewFile = 1;
+				}
+				sprintf(renderer->cur_draw_t.lutFilePath,"%s",filePath);
 				break;
 			case GLES_FS_TYPE_ZEBRA_S:
 				renderer->cur_draw_t.brightLimit = (unsigned char)ratio;
 				break;
 		}
-		
+		if (lutNewFile){
+			FILE *f = fopen(filePath, "r");
+		    if (!f) {
+				ALOGE("GLES_FS_TYPE_3DLUT file %s not found !\n",filePath);
+				fsType = renderer->cur_draw_t.drawType & 0xF;
+		    }else{
+		    	renderer->cur_draw_t.lutSize = 0;
+		    	fclose(f);
+				pthread_t tidp;
+		    	if ((pthread_create(&tidp, NULL, parese_cube_thread, (void*)renderer)) != 0){
+					ALOGE("GLES_FS_TYPE_3DLUT pthread_create error !\n");
+					fsType = renderer->cur_draw_t.drawType & 0xF;
+		    	}
+		    }
+		}else if (fsType != GLES_FS_TYPE_3DLUT){
+			memset(renderer->cur_draw_t.lutFilePath,0x00,sizeof(renderer->cur_draw_t.lutFilePath));
+			renderer->cur_draw_t.lutSize = 0;
+		}
 		renderer->cur_draw_t.drawType &= 0xFFF0;
 		renderer->cur_draw_t.drawType |= fsType;
     }
@@ -910,6 +1010,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 			case GLES_MARKUP_TYPE_SCOPEBOX:
 				renderer->cur_draw_t.centerX = centerX;
 				renderer->cur_draw_t.centerY = centerY;
+				renderer->cur_draw_t.alphabscope = (unsigned char)ratio;
 				break;
 				
 		}
@@ -930,7 +1031,6 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 		renderer->cur_draw_t.drawType &= 0xF0FF;
 		renderer->cur_draw_t.drawType |= partMarkupType;
     }
-	renderer->need_shader_change = true; //need opengl thread to execute
 
 //DEBUG
 	ALOGE("[Filter] ---------------------------------------[Filter]\n");
@@ -947,7 +1047,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 	ALOGE(" ---------------- whRatio = %f--------\n",renderer->cur_draw_t.whRatio);
 	ALOGE(" ---------------- argbFrame = 0x%x--------\n",renderer->cur_draw_t.argbFrame);
 	ALOGE(" ---------------- argb = 0x%x--------\n",renderer->cur_draw_t.argb);
-	ALOGE(" ---------------- filePath = %s--------\n",renderer->cur_draw_t.filePath);
+	ALOGE(" ---------------- lutFilePath = %s--------\n",renderer->cur_draw_t.lutFilePath);
 	ALOGE("[Filter] ---------------------------------------[Filter]\n");
 }
 

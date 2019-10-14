@@ -29,6 +29,7 @@ static const char g_shader[] = IJK_GLES_STRING(
     uniform   lowp  sampler2D us2_SamplerX;
     uniform   lowp  sampler2D us2_SamplerY;
     uniform   lowp  sampler2D us2_SamplerZ;
+	uniform   lowp  sampler2D lut_sampler;
 
 	uniform   ivec2 cunstom_cmd_type;
 	uniform   vec4 cunstom_Params;
@@ -222,23 +223,41 @@ static const char g_shader[] = IJK_GLES_STRING(
 		return inColor;
 	}
 
-	//rgb : 33*33*b + 33 * g + r
 	vec3 lut3dMapping(vec3 rgb,float size)
 	{
 		if (size <= 1.0)return rgb;
-		float s = size - 1.0;
-		float r = rgb.r * s;
-		float g = rgb.g * s;
-		float b = rgb.b * s;
+		float r = rgb.r;
+		float g = rgb.g;
+		float b = rgb.b;
+		if (b > 0.99) b = 0.99;
+	    float blueColor = b * (size - 1.0);
+		float fw = cunstom_factor.x;
+		float fh = cunstom_factor.y;
+		float oneW = fw / 8.0;
+		float oneh = 0.0;
+		float mod = size - 8.0 * (floor(size / 8.0));
+		float yline = 0.0;
+		if (mod == 0.0){
+			yline = size / 8.0;
+		}else{
+			yline = size / 8.0 + 1.0;	
+		}
+		oneh = fh / yline;
+		float xOff = 1.0 / 8.0;
+		float yOff = 1.0 / yline;
+	    vec2 quad;
+	    quad.y = floor(floor(blueColor) / 8.0);
+	    quad.x = floor(blueColor) - (quad.y * 8.0);
 
-		int iSize = int(size);
-		int ib = int(b);
-		int ig = int(g);
-		int ir = int(r);
-
-		int vidx = iSize * iSize * ib + iSize * ig + ir;
-		int index = vidx * 3;
-		return rgb;
+		float rp = 0.5/fw + ((xOff - 1.0/fw) * r);
+		float gp = 0.5/fh + ((yOff - 1.0/fh) * g);
+	    vec2 texPos;
+	    texPos.x = (quad.x * xOff) + rp;
+	    texPos.y = (quad.y * yOff) + gp;
+	    
+	    vec4 newColor = texture2D(lut_sampler, texPos);
+	    vec4 fcolor = mix(vec4(rgb,1.0), vec4(newColor.rgb, 1.0), 1.0);
+		return fcolor.rgb;
 	}
 
     void main()
@@ -253,6 +272,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 		yuv.x = (texture2D(us2_SamplerX, vv2_Texcoord).r - (16.0 / 255.0));
         yuv.y = (texture2D(us2_SamplerY, vv2_Texcoord).r - 0.5);
         yuv.z = (texture2D(us2_SamplerZ, vv2_Texcoord).r - 0.5);
+		
 		if (ftype == 0x2222){
 			yuv = magnifier(yuv);
 		}
@@ -274,6 +294,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 			color = auxfocus(color,crgb);
 		}else if (fcmd == 0x5){
         	color = lut3dMapping(color,cunstom_Params_plus.w);
+        	//color = texture2D(lut_sampler, vv2_Texcoord).rgb;
 		}else if (fcmd == 0x6){
         	color = zebra(color,yuv.x,cunstom_Params_plus.w);
 		}
@@ -282,7 +303,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 			gl_FragColor = outSideAlpha(color,aratio);
 		}
 		if (ftype == 0x3333){
-			gl_FragColor = inSideAlpha(color,0.5);
+			gl_FragColor = inSideAlpha(color,cunstom_Params_plus.x);
 		}
     }
 );

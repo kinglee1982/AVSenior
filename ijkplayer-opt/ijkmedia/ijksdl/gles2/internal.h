@@ -44,6 +44,7 @@ typedef struct IJK_GLES2_Renderer
     GLuint vertex_shader;
     GLuint fragment_shader;
     GLuint plane_textures[IJK_GLES2_MAX_PLANE];
+	GLuint lut_textures[1];
 
     GLuint av4_position; 
     GLuint av2_texcoord;
@@ -54,6 +55,7 @@ typedef struct IJK_GLES2_Renderer
 	GLuint cunstom_Colors;//colors
 	GLuint cunstom_factor;//width and height factor
     GLuint us2_sampler[IJK_GLES2_MAX_PLANE];
+	GLuint lut_sampler;
     GLuint um3_color_conversion;
 //for display texture
 	GLuint display_program;
@@ -67,7 +69,6 @@ typedef struct IJK_GLES2_Renderer
     GLsizei   (*func_getBufferWidth)(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
     GLboolean (*func_uploadTexture)(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
     GLvoid    (*func_destroy)(IJK_GLES2_Renderer *renderer);
-	GLvoid    (*func_shaderChange)(IJK_GLES2_Renderer *renderer,int fsType);
 
     GLsizei buffer_width;
     GLsizei visible_width;
@@ -89,7 +90,6 @@ typedef struct IJK_GLES2_Renderer
     GLsizei last_buffer_width;
 
 	GLES2_Draw_Type cur_draw_t;
-	GLboolean need_shader_change;
 } IJK_GLES2_Renderer;
 
 typedef struct IJK_GLES_Matrix
