@@ -72,25 +72,23 @@ static const char g_shader[] = IJK_GLES_STRING(
 
 	vec4 outSideAlpha(vec3 inColor,float aratio)
 	{
-		float wratio = cunstom_Params.x;
-		float hratio = cunstom_Params.y;
+		float l = cunstom_Params.x;
+		float t = cunstom_Params.y;
+		float r = cunstom_Params.z;
+		float b = cunstom_Params.w;
 		float x = vv2_Texcoord.x;
 		float y = vv2_Texcoord.y;
-		if (wratio != 0.0){
-			if (x <= wratio){
-				return vec4(inColor * aratio, aratio);
-			}
-			if (x >= 1.0 - wratio){
-				return vec4(inColor * aratio, aratio);
-			}
+		if (x <= l){
+			return vec4(inColor * aratio, aratio);
 		}
-		if (hratio != 0.0){
-			if (y >= 1.0 - hratio){
-				return vec4(inColor * aratio, aratio);
-			}
-			if (y <= hratio){
-				return vec4(inColor * aratio, aratio);
-			}
+		if (x >= r){
+			return vec4(inColor * aratio, aratio);
+		}
+		if (y >= b){
+			return vec4(inColor * aratio, aratio);
+		}
+		if (y <= t){
+			return vec4(inColor * aratio, aratio);
 		}
 		return vec4(inColor,1.0);
 	}

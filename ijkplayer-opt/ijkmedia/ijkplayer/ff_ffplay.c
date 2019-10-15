@@ -56,7 +56,7 @@
 #include "libavcodec/avfft.h"
 #include "libswresample/swresample.h"
 
-#if CONFIG_AVFILTER
+#if CONFIG_AVFILTER || SUPPORT_AV_FILTER
 # include "libavcodec/avcodec.h"
 # include "libavfilter/avfilter.h"
 # include "libavfilter/buffersink.h"

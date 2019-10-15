@@ -103,7 +103,7 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char lineWidth; //pixel
 	unsigned char cFlagType; //center flag draw type + or .0-3
 	unsigned char pseudoType; //pseudo type 0-2
-	unsigned char alphaOutside; //0x00-0xff
+	unsigned char alphaOutside; //0-100
 	unsigned char brightLimit; //0-100  for zebra-stripe and aux focus
 	unsigned char auxfocuslinewidth; //pixel
 	unsigned char alphabscope; //0-100

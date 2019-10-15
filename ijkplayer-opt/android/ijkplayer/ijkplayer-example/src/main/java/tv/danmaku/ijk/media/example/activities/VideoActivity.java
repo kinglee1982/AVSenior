@@ -216,7 +216,7 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
             0xFFFF6100,0xFF00FF00,0xFF0000FF,0xFFFF0000,0xFF082E54};
     private static float ratios[] = {1.0f,4.0f/3.0f,13.0f/9,14.0f/9,16.0f/9,2.0f};
     private static int fcolors[] = {0xFFFF0000,0xFF00FF00,0xFF0000FF,0xFFFFFFFF,0xFFFFFF00};
-    private static int fOutAlpha[] = {0xFF,0xBD,0x7F,0x3F,0x00};
+    private static int fOutAlpha[] = {100,75,50,25,0};
     private static int fLineW[] = {2,4,6,8,10};
     private static int fAZoom[] = {0x0A,0x1E,0x3C,0x5A,0x64};
     private static int fAuxFocusSensity[] = {0x0A,0x1E,0x32,0x4B,0x5A};
@@ -239,10 +239,10 @@ public class VideoActivity extends AppCompatActivity implements TracksFragment.I
             int cmd = framecmd[idxType];
 
             float rati = cmd == 0x30 ? fScale[idxScale] : (cmd == 0x40 || cmd == 0x50 ?
-                    fOutAlpha[idxFout]  * 100 / 255 : ratios[idxRatio]);
+                    fOutAlpha[idxFout] : ratios[idxRatio]);
             int centerX = idxType == framecmd.length - 4 ? 75 : (idxType == framecmd.length - 6 ? 25 : 50);
             int centerY = 50;
-            int type = cmd == 0x10 ? fAZoom[idxAZoom] : (
+            int type = cmd == 0x10 ? fAZoom[idxAZoom] | (fOutAlpha[idxFout] << 16) : (
                     cmd == 0x100 ? idxType - 3: (cmd == 0x30 ? idxType - 6 : fOutAlpha[idxFout]));
             mVideoView.setEGLFilter(cmd,type, centerX, centerY, rati, fcolors[idxColor],
                     fLineW[idxFLineW], "");

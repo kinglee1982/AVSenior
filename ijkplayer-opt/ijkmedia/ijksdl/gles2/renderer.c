@@ -26,6 +26,7 @@
 
 #include "internal.h"
 static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
+static GLfloat *IJK_GLES2_Draw_FrameVertexs(IJK_GLES2_Renderer *renderer,float whratio,float centerX,float centerY);
 static void IJK_GLES2_printProgramInfo(GLuint program)
 {
     if (!program)
@@ -453,8 +454,20 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		float orginWHRatio = fw * 1.0f / fh;
 		float woffsetRatio = whratio <= orginWHRatio ? (fw - fh * whratio) / fw : 0.0f;
 		float hoffsetRatio = whratio <= orginWHRatio ? 0.0f : (fh - fw / whratio) / fh;
-		arg1 = woffsetRatio / 2.0f;
-		arg2 = hoffsetRatio / 2.0f;
+		arg1 = woffsetRatio / 2.0f;//left
+		arg2 = hoffsetRatio / 2.0f;//top
+		arg3 = 1.0f - arg1;//right
+		arg4 = 1.0f - arg2;//bottom
+		type = GLES_MARKUP_RATIO_TYPE;
+	}else if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_WIREFRAME){
+		float centerX = (renderer->cur_draw_t.centerX / 100.0f - 0.5f) * 2;
+		float centerY = ( 0.5f - renderer->cur_draw_t.centerY / 100.0f) * 2;
+		float whratio = renderer->cur_draw_t.whRatio;
+		GLfloat *idex = IJK_GLES2_Draw_FrameVertexs(renderer,whratio,centerX,centerY);
+		arg1 = (idex[0] + 1.0f) / 2.0f;//left
+		arg2 = (1.0f - idex[1]) / 2.0f;//top
+		arg3 = (idex[6] + 1.0f) / 2.0f;//right
+		arg4 = (1.0f - idex[7]) / 2.0f;//bottom
 		type = GLES_MARKUP_RATIO_TYPE;
 	}else if ((renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_PARTSCALE){
 	#if 0
@@ -512,8 +525,9 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 	glUniform2f(renderer->cunstom_factor,wfactor,hfactor);
 	
 	int argb = renderer->cur_draw_t.argb;
-	float alpha = (renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO ? 
-		renderer->cur_draw_t.alphaOutside / 255.0f : 0.0f;
+	float alpha = (renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO || 
+		(renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_WIREFRAME ? 
+		renderer->cur_draw_t.alphaOutside / 100.0f : 0.0f;
 	glUniform4f(renderer->cunstom_Colors,((argb >> 16) & 0xFF) / 255.0f,
 		((argb >> 8) & 0xFF) / 255.0f,(argb & 0xFF) / 255.0f,alpha);
 }
@@ -990,7 +1004,8 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 				renderer->cur_draw_t.whRatio = ratio;
 				renderer->cur_draw_t.argbFrame = color;
 				renderer->cur_draw_t.lineWidth = lineW;
-				renderer->cur_draw_t.wireFrameRatio = type / 100.0f;
+				renderer->cur_draw_t.wireFrameRatio = (type & 0xFF) / 100.0f;
+				renderer->cur_draw_t.alphaOutside = (unsigned char)(type >> 16);
 				break;
 			case GLES_MARKUP_TYPE_RATIO:
 				renderer->cur_draw_t.alphaOutside = type;
