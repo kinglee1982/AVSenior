@@ -704,13 +704,11 @@ static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOve
 
 		memset(&renderer->cur_draw_t.lumaVertexs[0],0x00,sizeof(renderer->cur_draw_t.lumaVertexs));
 		for (int i=0;i<255 * 2;i += 2){
-			renderer->cur_draw_t.lumaVertexs[i * 3] = idex[0] + (i / 2) / 255.0f;
-			renderer->cur_draw_t.lumaVertexs[i * 3 + 1] = idex[7];
-			renderer->cur_draw_t.lumaVertexs[i * 3 + 2] = 0.0f;
+			renderer->cur_draw_t.lumaVertexs[i * 2] = idex[0] + (i / 2) / 255.0f;
+			renderer->cur_draw_t.lumaVertexs[i * 2 + 1] = idex[7];
 			
-			renderer->cur_draw_t.lumaVertexs[(i + 1) * 3] = idex[0] + (i / 2) / 255.0f;
-			renderer->cur_draw_t.lumaVertexs[(i + 1) * 3 + 1] = idex[7] + yOffs[i/2];
-			renderer->cur_draw_t.lumaVertexs[(i + 1) * 3 + 2] = 0.0f;
+			renderer->cur_draw_t.lumaVertexs[(i + 1) * 2] = idex[0] + (i / 2) / 255.0f;
+			renderer->cur_draw_t.lumaVertexs[(i + 1) * 2 + 1] = idex[7] + yOffs[i/2];
 		}
 		return renderer->cur_draw_t.lumaVertexs;
 	}else{
@@ -724,9 +722,8 @@ static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOve
 			int yStart = (h - hstart) * renderer->frame_width;
 			for (int i=0;i<renderer->frame_width;i++){
 				float yoffV = ybytes[i + h * renderer->frame_width] * yoffset / 255.0f;
-				renderer->cur_draw_t.oscVertexs[(yStart + i) * 3] = idex[0] + i * 1.0f / renderer->frame_width;
-				renderer->cur_draw_t.oscVertexs[(yStart + i) * 3 + 1] = idex[7] + yoffV;
-				renderer->cur_draw_t.oscVertexs[(yStart + i) * 3 + 2] = 0.0f;
+				renderer->cur_draw_t.oscVertexs[(yStart + i) * 2] = idex[0] + i * 1.0f / renderer->frame_width;
+				renderer->cur_draw_t.oscVertexs[(yStart + i) * 2 + 1] = idex[7] + yoffV;
 			}
 		}
 		return renderer->cur_draw_t.oscVertexs;
@@ -777,11 +774,11 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 			for (int loop = 0;loop < cycleNumber;loop ++){
 				GLfloat *vertexs = IJK_GLES2_Luma_Vertexs(renderer,overlay,lineMarkupType,loop);
 				if (vertexs == NULL)break;
-				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, vertexs);
+				glVertexAttribPointer(renderer->display_position, 2, GL_FLOAT, GL_FALSE, 8, vertexs);
 				glEnableVertexAttribArray(renderer->display_position);
 				glUniform4f(renderer->display_color,1.0f,1.0f,1.0f,1.0f);
 				if (lineMarkupType == GLES_MARKUP_TYPE_B_TABLE){
-					glLineWidth(2.0);
+					glLineWidth(2.0f);
 					glDrawArrays(GL_LINES, 0, 255 * 2); 
 				}else{
 					int hstart = loop * OSC_HEIGHT_STEP;
@@ -826,16 +823,13 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 				GLfloat *circleVertex = renderer->cur_draw_t.circleVertexs;
 				circleVertex[0] = 0.0f;
         		circleVertex[1] = 0.0f;
-				circleVertex[2] = 0.0f;
 				for (int i = 0; i < VERTEX_DATA_NUM; i++) {
-           			circleVertex[3 * i + 3] = (float) (size * cos(radian * i)) / whratio;
-            		circleVertex[3 * i + 1 + 3] = (float) (size * sin(radian * i));
-					circleVertex[3 * i + 2 + 3] = 0.0f;
+           			circleVertex[2 * i + 2] = (float) (size * cos(radian * i)) / whratio;
+            		circleVertex[2 * i + 1 + 2] = (float) (size * sin(radian * i));
         		}
-				circleVertex[VERTEX_DATA_NUM * 3 + 3] = (float) (size * cos(radian)) / whratio;
-        		circleVertex[VERTEX_DATA_NUM * 3 + 1 + 3] = (float) (size * sin(radian));
-				circleVertex[VERTEX_DATA_NUM * 3 + 2 + 3] = 0.0f;
-				glVertexAttribPointer(renderer->display_position, 3, GL_FLOAT, GL_FALSE, 12, circleVertex);
+				circleVertex[VERTEX_DATA_NUM * 2 + 2] = (float) (size * cos(radian)) / whratio;
+        		circleVertex[VERTEX_DATA_NUM * 2 + 1 + 2] = (float) (size * sin(radian));
+				glVertexAttribPointer(renderer->display_position, 2, GL_FLOAT, GL_FALSE, 8, circleVertex);
 				glDrawArrays(GL_TRIANGLE_FAN, 0, VERTEX_DATA_NUM + 2);
 				glDisableVertexAttribArray(renderer->display_position);
 			}
