@@ -1821,5 +1821,10 @@ static int ijkff_inject_callback(void *opaque, int message, void *data, size_t d
     }
 }
 
+
+- (void)setFiltercmd:(int)cmd type:(int)type centerX:(int)centerX centerY:(int)centerY floatRatio:(float)ratio color:(int)color lineW:(int)lineW filePath:(const char *)filaPath {
+    [_glView setFiltercmd:cmd type:type centerX:centerX centerY:centerY floatRatio:ratio color:color lineW:lineW filePath:filaPath];
+}
+
 @end
 

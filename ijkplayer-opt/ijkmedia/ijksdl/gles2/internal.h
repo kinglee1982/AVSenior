@@ -64,6 +64,7 @@ typedef struct IJK_GLES2_Renderer
 	GLuint display_position; 
 	GLuint display_color;
     GLuint display_mvp;
+	GLuint point_size;
 //end for display
     GLboolean (*func_use)(IJK_GLES2_Renderer *renderer);
     GLsizei   (*func_getBufferWidth)(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);

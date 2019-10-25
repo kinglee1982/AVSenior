@@ -88,7 +88,7 @@ typedef struct SDL_VoutOverlay SDL_VoutOverlay;
 
 #define LUMA_VERTEX_NUM (255 * 2 * 2)
 #define OSC_VIDEO_MAX_WIDTH 2048
-#define OSC_HEIGHT_STEP 50
+#define OSC_HEIGHT_STEP 100
 #define CIRCLE_MAX_RADIUS 96
 
 #define LUT_MAX_DATA_LEN (512 * 512 * 3)
@@ -107,6 +107,7 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char brightLimit; //0-100  for zebra-stripe and aux focus
 	unsigned char auxfocuslinewidth; //pixel
 	unsigned char alphabscope; //0-100
+	float scopePointSize;//scopebox point size
 	float wireFrameRatio;//frame scale
 	float partZoomScale;//part scale
 	float partZoomRatio; //part ratio
@@ -141,7 +142,7 @@ void      IJK_GLES2_Renderer_freeP(IJK_GLES2_Renderer **renderer);
 GLboolean IJK_GLES2_Renderer_setupGLES();
 GLboolean IJK_GLES2_Renderer_isValid(IJK_GLES2_Renderer *renderer);
 GLboolean IJK_GLES2_Renderer_isFormat(IJK_GLES2_Renderer *renderer, int format);
-GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer);
+GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer,bool needReset);
 GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_VoutOverlay *overlay);
 
 #define IJK_GLES2_GRAVITY_RESIZE                (0) // Stretch to fill view bounds.

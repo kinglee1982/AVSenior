@@ -637,4 +637,8 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
 {
     _shouldLockWhileBeingMovedToWindow = shouldLockWhileBeingMovedToWindow;
 }
+
+- (void)setFiltercmd:(int)cmd type:(int)type centerX:(int)centerX centerY:(int)centerY floatRatio:(float)ratio color:(int)color lineW:(int)lineW filePath:(const char *)filaPath {
+    IJK_GLES2_Renderer_SetFilter(_renderer, cmd, type, centerX, centerY, ratio, color, lineW, filaPath);
+}
 @end

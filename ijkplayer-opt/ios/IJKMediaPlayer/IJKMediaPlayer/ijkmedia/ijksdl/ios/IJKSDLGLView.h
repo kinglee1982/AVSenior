@@ -30,6 +30,7 @@
 
 @interface IJKSDLGLView : UIView <IJKSDLGLViewProtocol>
 
+- (void)setFiltercmd:(int)cmd type:(int)type centerX:(int)centerX centerY:(int)centerY floatRatio:(float)ratio color:(int)color lineW:(int)lineW filePath:(const char *)filaPath;
 - (id) initWithFrame:(CGRect)frame;
 - (void) display: (SDL_VoutOverlay *) overlay;
 

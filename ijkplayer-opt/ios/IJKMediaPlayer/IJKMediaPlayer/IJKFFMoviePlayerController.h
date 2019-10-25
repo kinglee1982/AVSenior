@@ -96,6 +96,7 @@ typedef enum IJKLogLevel {
 - (void)startRecordFile:(NSString *)file withFps:(int)fps;
 - (void)stopRecord;
 - (BOOL)isRecording;
+- (void)setFiltercmd:(int)cmd type:(int)type centerX:(int)centerX centerY:(int)centerY floatRatio:(float)ratio color:(int)color lineW:(int)lineW filePath:(const char *)filaPath;
 
 - (void)setPauseInBackground:(BOOL)pause;
 - (BOOL)isVideoToolboxOpen;

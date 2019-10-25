@@ -160,6 +160,7 @@ static void IJK_GLES2_Display_create(IJK_GLES2_Renderer *renderer)
 
     renderer->display_position   = glGetAttribLocation(renderer->display_program, "display_position");                IJK_GLES2_checkError_TRACE("glGetAttribLocation(display_position)");
     renderer->display_mvp        = glGetUniformLocation(renderer->display_program, "display_mvp");    IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_mvp)");
+    renderer->point_size        = glGetUniformLocation(renderer->display_program, "point_size");    IJK_GLES2_checkError_TRACE("glGetUniformLocation(point_size)");
 	renderer->display_color = glGetUniformLocation(renderer->display_program, "display_color");            IJK_GLES2_checkError_TRACE("glGetUniformLocation(display_color)");
     return;
 fail:
@@ -427,10 +428,10 @@ static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float ce
 {
 	static GLfloat vertexs[15] = {0.0f};
 	float y = renderer->frame_width * ratio / 2.0f / (renderer->frame_height * 1.0f);
-	if (centerX - ratio < -1.0f)centerX = -ratio;
-	if (centerX + ratio > 1.0f)centerX = ratio;
-	if (centerY + y > 1.0f)centerY = 1.0f - y;
-	if (centerY - y < -1.0f)centerY = -1.0f + y;
+	if (centerX - ratio <= -1.0f)centerX = -1.0 + ratio;
+	if (centerX + ratio >= 1.0f)centerX = 1.0 - ratio;
+	if (centerY + y >= 1.0f)centerY = 1.0f - y;
+	if (centerY - y <= -1.0f)centerY = -1.0f + y;
 
 	vertexs[0] = centerX - ratio;vertexs[1] = centerY + y;
 	vertexs[3] = centerX + ratio;vertexs[4] = centerY + y;
@@ -534,7 +535,7 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 /*
  * Per-Renderer routine
  */
-GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer)
+GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer,bool needReset)
 {
     if (!renderer)
         return GL_FALSE;
@@ -547,10 +548,12 @@ GLboolean IJK_GLES2_Renderer_use(IJK_GLES2_Renderer *renderer)
     IJK_GLES2_loadOrtho(&modelViewProj, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
     glUniformMatrix4fv(renderer->um4_mvp, 1, GL_FALSE, modelViewProj.m);                    IJK_GLES2_checkError_TRACE("glUniformMatrix4fv(um4_mvp)");
 
-    IJK_GLES2_Renderer_TexCoords_reset(renderer);
+	if (needReset)
+    	IJK_GLES2_Renderer_TexCoords_reset(renderer);
     IJK_GLES2_Renderer_TexCoords_reloadVertex(renderer);
-
-    IJK_GLES2_Renderer_Vertices_reset(renderer);
+	
+	if (needReset)
+    	IJK_GLES2_Renderer_Vertices_reset(renderer);
     IJK_GLES2_Renderer_Vertices_reloadVertex(renderer);
 
 	IJK_GLES2_Set_Custom(renderer);
@@ -564,8 +567,8 @@ GLboolean IJK_GLES2_Renderer_renderOverlay(IJK_GLES2_Renderer *renderer, SDL_Vou
 {
     if (!renderer || !renderer->func_uploadTexture)
         return GL_FALSE;
-	IJK_GLES2_Renderer_use(renderer);
-
+//can't reset Vertices or TexCoords,maybe has changed
+	IJK_GLES2_Renderer_use(renderer,false);
     glClear(GL_COLOR_BUFFER_BIT);               IJK_GLES2_checkError_TRACE("glClear");
 
     GLsizei visible_width  = renderer->frame_width;
@@ -772,6 +775,7 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 					lineMarkupType == GLES_MARKUP_TYPE_SCOPEBOX){
 			int cycleNumber = lineMarkupType == GLES_MARKUP_TYPE_B_TABLE ? 1 : renderer->frame_height;
 			for (int loop = 0;loop < cycleNumber;loop ++){
+				if (overlay == NULL)break;
 				GLfloat *vertexs = IJK_GLES2_Luma_Vertexs(renderer,overlay,lineMarkupType,loop);
 				if (vertexs == NULL)break;
 				glVertexAttribPointer(renderer->display_position, 2, GL_FLOAT, GL_FALSE, 8, vertexs);
@@ -786,6 +790,7 @@ static void IJK_GLES2_Draw_Custom_Graph(IJK_GLES2_Renderer *renderer, SDL_VoutOv
 					hstart = hstart < renderer->frame_height ? hstart : renderer->frame_height;
 					hend = hend < renderer->frame_height ? hend : renderer->frame_height;
  					if (hend > hstart){
+						glUniform1f(renderer->point_size,renderer->cur_draw_t.scopePointSize);
  						glDrawArrays(GL_POINTS, 0, (hend - hstart) * renderer->frame_width); 
 					}
 				}
@@ -1019,6 +1024,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 			case GLES_MARKUP_TYPE_SCOPEBOX:
 				renderer->cur_draw_t.centerX = centerX;
 				renderer->cur_draw_t.centerY = centerY;
+				renderer->cur_draw_t.scopePointSize = (lineW > 0 && lineW < 5) ? (float)lineW : 1.0f;
 				renderer->cur_draw_t.alphabscope = (unsigned char)ratio;
 				break;
 				
@@ -1043,11 +1049,13 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 
 //DEBUG
 	ALOGE("[Filter] ---------------------------------------[Filter]\n");
+	ALOGE(" ---------------- frame w:h = %d:%d--------\n",renderer->frame_width,renderer->frame_height);
 	ALOGE(" ---------------- drawType = 0x%x--------\n",renderer->cur_draw_t.drawType);
 	ALOGE(" ---------------- centerX = %d--------\n",renderer->cur_draw_t.centerX);
 	ALOGE(" ---------------- centerY = %d--------\n",renderer->cur_draw_t.centerY);
 	ALOGE(" ---------------- lineWidth = %d--------\n",renderer->cur_draw_t.lineWidth);
 	ALOGE(" ---------------- cFlagType = %d--------\n",renderer->cur_draw_t.cFlagType);
+	ALOGE(" ---------------- scopePointSize = %f--------\n",renderer->cur_draw_t.scopePointSize);
 	ALOGE(" ---------------- partZoomRatio = %f--------\n",renderer->cur_draw_t.partZoomRatio);
 	ALOGE(" ---------------- pseudoType = %d--------\n",renderer->cur_draw_t.pseudoType);
 	ALOGE(" ---------------- alphaOutside = %d--------\n",renderer->cur_draw_t.alphaOutside);

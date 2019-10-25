@@ -288,7 +288,7 @@ static EGLBoolean IJK_EGL_prepareRenderer(IJK_EGL* egl, SDL_VoutOverlay *overlay
             return EGL_FALSE;
         }
 
-        if (!IJK_GLES2_Renderer_use(opaque->renderer)) {
+        if (!IJK_GLES2_Renderer_use(opaque->renderer,true)) {
             ALOGE("[EGL] Could not use render.");
             IJK_GLES2_Renderer_freeP(&opaque->renderer);
             return EGL_FALSE;
