@@ -217,7 +217,7 @@ static const char g_shader[] = IJK_GLES_STRING(
                     YValues[6] * 1.0 + YValues[7] * 1.0;
 
      	float finalColor = length(vec2(hColor, vColor));
-		if (finalColor > rfactor)return linecolor;
+		if (finalColor >= rfactor)return linecolor;
 		return inColor;
 	}
 
