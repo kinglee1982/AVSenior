@@ -300,7 +300,7 @@ typedef NS_ENUM(NSInteger, IJKSDLGLViewApplicationState) {
         if (!IJK_GLES2_Renderer_isValid(_renderer))
             return NO;
 
-        if (!IJK_GLES2_Renderer_use(_renderer))
+        if (!IJK_GLES2_Renderer_use(_renderer,true))
             return NO;
 
         IJK_GLES2_Renderer_setGravity(_renderer, _rendererGravity, _backingWidth, _backingHeight);

@@ -39,31 +39,32 @@ static const char g_shader[] = IJK_GLES_STRING(
 
 	vec3 getFalseColor(float y)
 	{
-		if (y <= 0.02){
-			return vec3(0.357,0.196,0.369);
-		}else if (y <= 0.08){
-			return vec3(0.047,0.443,0.624);
-		}else if (y <= 0.15){
-			return vec3(0.094,0.557,0.659);
-		}else if (y <= 0.24){
-			return vec3(0.302,0.675,0.690);
-		}else if (y <= 0.43){
-			return vec3(0.557,0.557,0.557);
-		}else if (y <= 0.47){
-			return vec3(0.431,0.753,0.318);
-		}else if (y <= 0.54){
-			return vec3(0.655,0.655,0.655);
-		}else if (y <= 0.58){
-			return vec3(0.984,0.545,0.498);
-		}else if (y <= 0.76){
-			return vec3(0.839,0.839,0.839);
-		}else if (y <= 0.85){
-			return vec3(0.953,0.910,0.588);
-		}else if (y <= 0.92){
+        float num = (219.0 / 255.00);
+		if (y <= 0.02 * num){
+			return vec3(0.690,0.169,0.623);
+		}else if (y <= 0.08 * num){
+			return vec3(0.090,0.396,0.588);
+		}else if (y <= 0.15 * num){
+			return vec3(0.102,0.513,0.659);
+		}else if (y <= 0.24 * num){
+			return vec3(0.259,0.635,0.658);
+		}else if (y <= 0.43 * num){
+			return vec3(0.517,0.517,0.517);
+		}else if (y <= 0.47 * num){
+			return vec3(0.396,0.729,0.255);
+		}else if (y <= 0.54 * num){
+			return vec3(0.619,0.619,0.619);
+		}else if (y <= 0.58 * num){
+			return vec3(0.980,0.498,0.447);
+		}else if (y <= 0.76 * num){
+			return vec3(0.819,0.819,0.819);
+		}else if (y <= 0.85 * num){
+			return vec3(0.945,0.910,0.588);
+		}else if (y <= 0.92 * num){
 			return vec3(1.0,1.0,0.0);
-		}else if (y <= 0.98){
+		}else if (y <= 0.98 * num){
 			return vec3(1.0,0.588,0.0);
-		}else if (y <= 1.0){
+		}else if (y <= 1.0 * num){
 			return vec3(0.996,0.0,0.0);
 		}else{
 			return vec3(0.0,0.0,0.0);
@@ -166,16 +167,16 @@ static const char g_shader[] = IJK_GLES_STRING(
 			float tx = vv2_Texcoord.x;
 			float ty = vv2_Texcoord.y;
 			float v = tx + ty;
-			//0.01 for line width ;0.020 for line space
+			//0.002 for line width ;0.0070 for line space
 			//v % 0.020
-			if ((v - 0.020 * floor(v / 0.020)) <= 0.01){
-				return vec3(0.3,0.3,0.3);
-			}
+            if ((v - 0.0070 * floor(v / 0.0070)) <= 0.002){
+                return vec3(0.3,0.3,0.3);
+            }
 		}
 		return inColor;
 	}
 
-	vec3 auxfocus(vec3 inColor,vec3 linecolor)
+	vec3 auxfocus(vec3 inColor,vec3 linecolor,float lineAlpha)
 	{  
 		vec2 v_directTexCoord[8];
 		float YValues[8];
@@ -217,7 +218,10 @@ static const char g_shader[] = IJK_GLES_STRING(
                     YValues[6] * 1.0 + YValues[7] * 1.0;
 
      	float finalColor = length(vec2(hColor, vColor));
-		if (finalColor >= rfactor)return linecolor;
+		if (finalColor >= rfactor){
+			vec4 fcolor = mix(vec4(inColor,1.0), vec4(linecolor,1.0), lineAlpha);
+			return fcolor.rgb;
+		}
 		return inColor;
 	}
 
@@ -289,7 +293,7 @@ static const char g_shader[] = IJK_GLES_STRING(
 			color = getFalseColor(yuv.x);
 		}else if (fcmd == 0x4){
 			vec3 crgb = vec3(cunstom_Colors.r,cunstom_Colors.g,cunstom_Colors.b);
-			color = auxfocus(color,crgb);
+			color = auxfocus(color,crgb,cunstom_Colors.a);
 		}else if (fcmd == 0x5){
         	color = lut3dMapping(color,cunstom_Params_plus.w);
         	//color = texture2D(lut_sampler, vv2_Texcoord).rgb;

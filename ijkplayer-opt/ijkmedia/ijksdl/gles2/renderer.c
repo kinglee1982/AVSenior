@@ -427,7 +427,8 @@ static void IJK_GLES2_Display_use(IJK_GLES2_Renderer *renderer)
 static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float centerX,float centerY,float ratio)
 {
 	static GLfloat vertexs[15] = {0.0f};
-	float y = renderer->frame_width * ratio / 2.0f / (renderer->frame_height * 1.0f);
+	int fw = (int)(renderer->frame_width * renderer->texcoords[2]); //for screen crop
+	float y = fw * ratio / 2.0f / (renderer->frame_height * 1.0f);
 	if (centerX - ratio <= -1.0f)centerX = -1.0 + ratio;
 	if (centerX + ratio >= 1.0f)centerX = 1.0 - ratio;
 	if (centerY + y >= 1.0f)centerY = 1.0f - y;
@@ -529,6 +530,9 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 	float alpha = (renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_RATIO || 
 		(renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_WIREFRAME ? 
 		renderer->cur_draw_t.alphaOutside / 100.0f : 0.0f;
+	if ((renderer->cur_draw_t.drawType & 0x000F) == GLES_FS_TYPE_AUX_FOCUS){
+		alpha = ((renderer->cur_draw_t.argb >> 24) & 0xFF) / 255.0f;
+	}
 	glUniform4f(renderer->cunstom_Colors,((argb >> 16) & 0xFF) / 255.0f,
 		((argb >> 8) & 0xFF) / 255.0f,(argb & 0xFF) / 255.0f,alpha);
 }
@@ -632,7 +636,8 @@ static GLfloat *IJK_GLES2_Draw_FrameVertexs(IJK_GLES2_Renderer *renderer,float w
 	int lineMarkupType = renderer->cur_draw_t.drawType & 0x00F0;
 	static GLfloat vertexs[GLES_RECT_POINTS_COORD_NUM] = {0.0f};
 	GLfloat *originVertexs = renderer->cur_draw_t.rectVertexs;
-	int fw = renderer->frame_width;
+	int fw = (int)(renderer->frame_width * renderer->texcoords[2]); //for screen crop
+	//int fw = renderer->frame_width;
 	int fh = renderer->frame_height;
 	if (whratio <= 0 || fw == 0 || fh == 0)return originVertexs;
 	
