@@ -108,6 +108,7 @@ typedef struct GLES2_Draw_Type_t{
 	unsigned char auxfocuslinewidth; //pixel
 	unsigned char alphabscope; //0-100
 	float scopePointSize;//scopebox point size
+	float b_scopeRatio;//B_TABLE and SCOPEBOX fram ratio
 	float wireFrameRatio;//frame scale
 	float partZoomScale;//part scale
 	float partZoomRatio; //part ratio

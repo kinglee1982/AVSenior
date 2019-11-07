@@ -427,7 +427,8 @@ static void IJK_GLES2_Display_use(IJK_GLES2_Renderer *renderer)
 static GLfloat *IJK_GLES2_Draw_RectVertexs(IJK_GLES2_Renderer *renderer,float centerX,float centerY,float ratio)
 {
 	static GLfloat vertexs[15] = {0.0f};
-	int fw = (int)(renderer->frame_width * renderer->texcoords[2]); //for screen crop
+	//int fw = (int)(renderer->frame_width * renderer->texcoords[2]); //for screen crop
+	int fw = renderer->frame_width;
 	float y = fw * ratio / 2.0f / (renderer->frame_height * 1.0f);
 	if (centerX - ratio <= -1.0f)centerX = -1.0 + ratio;
 	if (centerX + ratio >= 1.0f)centerX = 1.0 - ratio;
@@ -501,7 +502,7 @@ static void IJK_GLES2_Set_Custom(IJK_GLES2_Renderer *renderer)
 		(renderer->cur_draw_t.drawType & 0x00F0) == GLES_MARKUP_TYPE_SCOPEBOX){
 		float centerX = (renderer->cur_draw_t.centerX / 100.0f - 0.5f) * 2.0f;
 		float centerY = (0.5f - renderer->cur_draw_t.centerY / 100.0f) * 2.0f;
-		GLfloat *idex = IJK_GLES2_Draw_RectVertexs(renderer,centerX,centerY,0.5f);
+		GLfloat *idex = IJK_GLES2_Draw_RectVertexs(renderer,centerX,centerY,renderer->cur_draw_t.b_scopeRatio);
 		arg1 = (idex[0] + 1.0f) / 2.0f;
 		arg2 = ( 1.0f + idex[3]) / 2.0f;
 		arg3 = (1.0f - idex[1]) / 2.0f;
@@ -692,7 +693,8 @@ static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOve
 {
 	float centerX = (renderer->cur_draw_t.centerX / 100.0f - 0.5f) * 2.0f;
 	float centerY = (0.5f - renderer->cur_draw_t.centerY / 100.0f) * 2.0f;
-	GLfloat *idex = IJK_GLES2_Draw_RectVertexs(renderer,centerX,centerY,0.5f);
+	float ratio = renderer->cur_draw_t.b_scopeRatio;
+	GLfloat *idex = IJK_GLES2_Draw_RectVertexs(renderer,centerX,centerY,ratio);
 	GLubyte *ybytes = overlay->pixels[0];
 	int ySize = renderer->frame_width * renderer->frame_height;
 	float yoffset = idex[1] - idex[7];
@@ -712,10 +714,10 @@ static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOve
 
 		memset(&renderer->cur_draw_t.lumaVertexs[0],0x00,sizeof(renderer->cur_draw_t.lumaVertexs));
 		for (int i=0;i<255 * 2;i += 2){
-			renderer->cur_draw_t.lumaVertexs[i * 2] = idex[0] + (i / 2) / 255.0f;
+			renderer->cur_draw_t.lumaVertexs[i * 2] = idex[0] + (i / 2) / 255.0f * ratio * 2;
 			renderer->cur_draw_t.lumaVertexs[i * 2 + 1] = idex[7];
 			
-			renderer->cur_draw_t.lumaVertexs[(i + 1) * 2] = idex[0] + (i / 2) / 255.0f;
+			renderer->cur_draw_t.lumaVertexs[(i + 1) * 2] = idex[0] + (i / 2) / 255.0f * ratio * 2;
 			renderer->cur_draw_t.lumaVertexs[(i + 1) * 2 + 1] = idex[7] + yOffs[i/2];
 		}
 		return renderer->cur_draw_t.lumaVertexs;
@@ -730,7 +732,7 @@ static GLfloat *IJK_GLES2_Luma_Vertexs(IJK_GLES2_Renderer *renderer, SDL_VoutOve
 			int yStart = (h - hstart) * renderer->frame_width;
 			for (int i=0;i<renderer->frame_width;i++){
 				float yoffV = ybytes[i + h * renderer->frame_width] * yoffset / 255.0f;
-				renderer->cur_draw_t.oscVertexs[(yStart + i) * 2] = idex[0] + i * 1.0f / renderer->frame_width;
+				renderer->cur_draw_t.oscVertexs[(yStart + i) * 2] = idex[0] + i * 1.0f / renderer->frame_width * ratio * 2;
 				renderer->cur_draw_t.oscVertexs[(yStart + i) * 2 + 1] = idex[7] + yoffV;
 			}
 		}
@@ -1031,6 +1033,7 @@ void IJK_GLES2_Renderer_SetFilter(IJK_GLES2_Renderer *renderer,int cmd,int type,
 				renderer->cur_draw_t.centerY = centerY;
 				renderer->cur_draw_t.scopePointSize = (lineW > 0 && lineW < 5) ? (float)lineW : 1.0f;
 				renderer->cur_draw_t.alphabscope = (unsigned char)ratio;
+				renderer->cur_draw_t.b_scopeRatio = type / 100.0f;
 				break;
 				
 		}
